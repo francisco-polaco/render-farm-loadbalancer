@@ -139,3 +139,4 @@ $RECYCLE.BIN/
 /.idea/
 !/lib/BIT.jar
 /render-farm-webserver.iml
+/render-farm-loadbalancer.iml

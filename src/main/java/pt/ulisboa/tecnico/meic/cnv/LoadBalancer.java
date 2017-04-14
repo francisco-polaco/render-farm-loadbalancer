@@ -26,8 +26,6 @@ public class LoadBalancer {
         String port = cmd.getOptionValue("p");
         if(port != null) PORT = Integer.valueOf(port);
 
-        farm.add(new WebServerProxy("http://localhost:8000"));
-
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         server.createContext("/r.html", new MyHandler());
         System.out.println("Autobalancer is running @ port " + PORT);

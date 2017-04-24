@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class LoadBalancerRandomChoice implements LoadBalancerChoiceStrategy{
     @Override
-    public WebServerProxy chooseBestNode(List<WebServerProxy> farm) {
+    public WebServerProxy chooseBestNode(List<WebServerProxy> farm, Request request) {
         return farm.get(new Random().nextInt(farm.size()));
     }
 }

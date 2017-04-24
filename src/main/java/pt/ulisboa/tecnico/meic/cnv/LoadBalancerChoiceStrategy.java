@@ -3,5 +3,5 @@ package pt.ulisboa.tecnico.meic.cnv;
 import java.util.List;
 
 public interface LoadBalancerChoiceStrategy {
-    WebServerProxy chooseBestNode(List<WebServerProxy> farm);
+    WebServerProxy chooseBestNode(List<WebServerProxy> farm, Request request);
 }

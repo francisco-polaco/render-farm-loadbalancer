@@ -4,7 +4,7 @@ import java.util.List;
 
 public class LoadBalancerLRUChoice implements LoadBalancerChoiceStrategy {
     @Override
-    public WebServerProxy chooseBestNode(List<WebServerProxy> farm) {
+    public WebServerProxy chooseBestNode(List<WebServerProxy> farm, Request request) {
         WebServerProxy minimum = null;
 
         for(WebServerProxy wsp: farm){

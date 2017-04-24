@@ -11,14 +11,13 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 public class WebServerProxy {
     private String address;
     private int port;
     private Timestamp lastTimeUsed;
-    private ArrayList<UUID> unfinishedJobs = new ArrayList<>();
+    private ArrayList<Request> activeJobs = new ArrayList<>();
+    private ArrayList<Request> historyJobs = new ArrayList<>();
 
     public WebServerProxy(String remoteAddress) throws ArrayIndexOutOfBoundsException, NumberFormatException {
         String[] args = remoteAddress.split(":");
@@ -34,19 +33,17 @@ public class WebServerProxy {
     public Timestamp getLastTimeUsed(){
         return this.lastTimeUsed;
     }
-    public List<UUID> getUnfinishedJobs(){
-        return unfinishedJobs;
-    }
 
-    public void dispatch(HttpExchange t, UUID uuid) throws IOException {
+    public void dispatch(HttpExchange t, Request request) throws IOException {
         InputStream is = null;
         OutputStream os = null;
         try {
             lastTimeUsed = new Timestamp(System.currentTimeMillis());
-            unfinishedJobs.add(uuid);
+            activeJobs.add(request);
+            historyJobs.add(request);
 
-            URL remoteResourse = new URL("http://" + address + ":+" + port + "/r.html?" +
-                    t.getRequestURI().getQuery() + "&requestid=" + uuid);
+            URL remoteResourse = new URL(getRemoteURL() + "/r.html?" +
+                    t.getRequestURI().getQuery() + "&requestid=" + request.getId());
 
             URLConnection uc = remoteResourse.openConnection();
             is = uc.getInputStream();
@@ -57,10 +54,10 @@ public class WebServerProxy {
             IOUtils.copy(is, os);
             is.close();
             os.close();
-            unfinishedJobs.remove(uuid);
+            activeJobs.remove(request);
         }
         catch(IOException e){
-            unfinishedJobs.remove(uuid);
+            activeJobs.remove(request);
             if(is != null) is.close();
             if(os != null) os.close();
             throw e;
@@ -76,6 +73,10 @@ public class WebServerProxy {
         return false;
     }
 
+    public boolean hasNoActiveJobs() {
+        return activeJobs.isEmpty();
+    }
+
     public String getAddress() {
         return address;
     }
@@ -86,7 +87,8 @@ public class WebServerProxy {
 
     @Override
     public String toString(){
-        return "[NODE]: Address: " + this.address + ":" + this.port + " | Last time used: " + this.lastTimeUsed + " | Queue: " + this.unfinishedJobs;
+        return "NODE{remoteURL:" + getRemoteURL() + ", lastTimeUsed:" + lastTimeUsed +
+                ", activeJobs: " + activeJobs + ", historyJobs: "+ historyJobs + "}";
     }
 
     @Override
@@ -98,5 +100,9 @@ public class WebServerProxy {
 
         WebServerProxy wsp = (WebServerProxy) o;
         return address.equals(wsp.getAddress()) && port == wsp.getPort();
+    }
+
+    public String getRemoteURL(){
+        return "http://" + address + ":" + port;
     }
 }

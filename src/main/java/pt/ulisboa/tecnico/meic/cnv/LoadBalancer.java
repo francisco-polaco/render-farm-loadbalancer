@@ -21,6 +21,7 @@ public class LoadBalancer {
 
     //We keep a cache metric to avoid contacting database all the time
     //This could be a potential problem, so we should clean it some times during runtime
+    //TODO
     private static Map<Argument, Metric> metricCache = new Hashtable<>();
 
     //One estimator for each model

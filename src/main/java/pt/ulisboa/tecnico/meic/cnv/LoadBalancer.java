@@ -3,6 +3,7 @@ package pt.ulisboa.tecnico.meic.cnv;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import com.sun.org.apache.regexp.internal.RE;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
@@ -10,12 +11,23 @@ import org.apache.commons.cli.ParseException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.*;
 
 public class LoadBalancer {
     private static int PORT = 8000;
-    private static ArrayList<WebServerProxy> farm = new ArrayList<>();
+
+    //List containing all available nodes
+    private static List<WebServerProxy> farm = new ArrayList<>();
+
+    //We keep a cache metric to avoid contacting database all the time
+    //This could be a potential problem, so we should clean it some times during runtime
+    private static Map<Argument, Metric> metricCache = new Hashtable<>();
+
+    //One estimator for each model
+    private static Map<String, Estimator> estimators = new Hashtable<>();
+
+    //Amazon DynamoDB repository
+    private static RepositoryService repositoryService = new RepositoryService();
 
     public static void main(String[] args) throws ParseException {
         Options options = new Options()
@@ -39,6 +51,7 @@ public class LoadBalancer {
             e.printStackTrace();
             System.exit(1);
         }
+
         server.createContext("/r.html", new MyHandler());
         System.out.println("Load balancer is running at *:" + PORT);
         server.start();
@@ -52,18 +65,18 @@ public class LoadBalancer {
         });
 
         if(cmd.hasOption("cli")) {
-            (new LoadCLI()).start();
+            (new CLI()).start();
         }
     }
 
     private static class MyHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
-            (new LoadBalancerThread(t, farm)).start();
+            (new LoadBalancerThread(t, farm, metricCache, estimators, repositoryService)).start();
         }
     }
 
-    private static class LoadCLI extends Thread {
+    private static class CLI extends Thread {
         @Override
         public void run(){
             System.out.println("Enter one of the following commands:");

@@ -1,70 +1,73 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
+import com.amazonaws.services.dynamodbv2.xspec.NULL;
+
 import java.sql.Timestamp;
+import java.util.Map;
 import java.util.UUID;
 
 public class Request {
     private UUID id;
-    private String model;
-    private int sceneColumns;
-    private int sceneRows;
-    private int windowColumns;
-    private int windowRows;
-    private int columnOffset;
-    private int rowOffset;
-    private Timestamp timestamp;
+    private Metric metric;
+    private Argument argument;
+    private long timestamp;
 
-    public Request(String model, int sceneColumns, int sceneRows, int windowColumns, int windowRows, int columnOffset, int rowOffset) {
+    public Request(String model, int sceneColumns, int sceneRows, int windowColumns, int windowRows, int columnOffset,
+                   int rowOffset) throws RuntimeException {
         id = UUID.randomUUID();
-        this.model = model;
-        this.sceneColumns = sceneColumns;
-        this.sceneRows = sceneRows;
-        this.windowColumns = windowColumns;
-        this.windowRows = windowRows;
-        this.columnOffset = columnOffset;
-        this.rowOffset = rowOffset;
-        timestamp = new Timestamp(System.currentTimeMillis());
+        argument = new Argument(model, sceneColumns, sceneRows, windowColumns, windowRows, columnOffset, rowOffset);
+        timestamp = System.currentTimeMillis();
     }
+
+
+    public Request(String model, String sceneColumns, String sceneRows, String windowColumns, String windowRows,
+                   String columnOffset, String rowOffset) throws RuntimeException {
+        id = UUID.randomUUID();
+        argument = new Argument(model, Integer.valueOf(sceneColumns), Integer.valueOf(sceneRows),
+                Integer.valueOf(windowColumns), Integer.valueOf(windowRows), Integer.valueOf(columnOffset),
+                Integer.valueOf(rowOffset));
+        timestamp = System.currentTimeMillis();
+    }
+
+    public Request(Map<String, String> arguments) throws RuntimeException {
+        id = UUID.randomUUID();
+        argument = new Argument(arguments);
+        timestamp = System.currentTimeMillis();
+    }
+
 
     public UUID getId() {
         return id;
     }
 
-    public String getModel() {
-        return model;
+    public Argument getArgument() {
+        return argument;
     }
 
-    public int getSceneColumns() {
-        return sceneColumns;
+    public void setMetric(Metric metric) {
+        this.metric = metric;
     }
 
-    public int getSceneRows() {
-        return sceneRows;
+
+    public double getRank() {
+        return metric.getRank();
     }
 
-    public int getWindowColumns() {
-        return windowColumns;
+    public Metric getMetric() {
+        return metric;
     }
 
-    public int getWindowRows() {
-        return windowRows;
-    }
-
-    public int getColumnOffset() {
-        return columnOffset;
-    }
-
-    public int getRowOffset() {
-        return rowOffset;
-    }
-
-    public Timestamp getTimestamp() {
+    public long getTimestamp() {
         return timestamp;
     }
 
     @Override
-    public String toString(){
-        return "REQUEST{id:" + id + ", f:" + model + ", sc:" + sceneColumns + ", sr;" + sceneRows + ", wc:" +
-                windowColumns + ", wr:" + windowRows + ", coff:" + columnOffset + ", roff:" + rowOffset + "}";
+    public String toString() {
+        return "Request{" +
+                "id=" + id +
+                ", argument=" + argument +
+                ", metric=" + metric +
+                ", timestamp=" + timestamp +
+                '}';
     }
 }

@@ -3,18 +3,20 @@ package pt.ulisboa.tecnico.meic.cnv;
 import java.util.List;
 
 public class LoadBalancerLRUChoice implements LoadBalancerChoiceStrategy {
+    private List<WebServerProxy> farm;
+
+    public LoadBalancerLRUChoice(List<WebServerProxy> farm){
+        this.farm = farm;
+    }
+
     @Override
-    public WebServerProxy chooseBestNode(List<WebServerProxy> farm, Request request) {
+    public WebServerProxy chooseBestNode(Request request) {
         WebServerProxy minimum = null;
 
         for(WebServerProxy wsp: farm){
-            if(minimum == null)
+            if(minimum == null || wsp.getLastTimeUsed() == 0)
                 minimum = wsp;
-            else if(wsp.getLastTimeUsed() == null){
-                minimum = wsp;
-            }
-            else
-                if(wsp.getLastTimeUsed().before(minimum.getLastTimeUsed()))
+            else if(wsp.getLastTimeUsed() < minimum.getLastTimeUsed())
                     minimum = wsp;
         }
 

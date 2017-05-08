@@ -11,13 +11,16 @@ import org.apache.commons.cli.ParseException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static pt.ulisboa.tecnico.meic.cnv.State.ALIVE;
 
 public class LoadBalancer {
     private static final int CACHE_THRESHOLD = 10; // fixme bernardo what do you think?
     private static int PORT = 8000;
 
     //List containing all available nodes
-    private static List<WebServerProxy> farm = new ArrayList<>();
+    private static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
 
     //We keep a cache metric to avoid contacting database all the time
     //This could be a potential problem, so we should clean it some times during runtime
@@ -112,7 +115,7 @@ public class LoadBalancer {
                                         System.out.println("Node already exists");
                                         continue;
                                     }
-                                    if (wsp.isAvailable()) {
+                                    if (wsp.isAvailable() == ALIVE) {
                                         farm.add(wsp);
                                         System.out.println("Added node to farm");
                                     } else
@@ -170,6 +173,26 @@ public class LoadBalancer {
 
         @Override
         public void run() {
+            if (metricCache.size() < CACHE_THRESHOLD) return;
+            metricCache.clear();
+            new ClearCacheTableTask();
+        }
+    }
+
+    private static class CheckWebServerProxysTask extends TimerTask {
+
+        public CheckWebServerProxysTask() {
+            new Timer().schedule(this, 10 * 1000);
+        }
+
+        @Override
+        public void run() {
+            for (int i = 0; i < farm.size(); i++) {
+                if (farm.get(i).isAvailable() == State.DEAD) {
+                    farm.remove(i);
+                    i -= 1; // We need to check the same position since it will be removed.
+                }
+            }
             if (metricCache.size() < CACHE_THRESHOLD) return;
             metricCache.clear();
             new ClearCacheTableTask();

@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class WebServerProxy {
-    private static final int PING_TIMEOUT_MS = 1000; // FIXME I think this is too much, this is not even close to a ping to the US using a home service.
     private String address;
     private int port;
     private long lastTimeUsed;
@@ -66,23 +65,25 @@ public class WebServerProxy {
         }
     }
 
-    boolean isAvailable() {
-        // We should be checking against ping page!
-        // Any Open port on other machine
+    State isAvailable() {
         String html;
         try {
             html = Jsoup.connect("http://" + address + ":" + port + "/test").get().html();
         } catch (IOException e) {
-            state = State.TERMINAL;
-            return false;
+            badStateLogic();
+            return state;
         }
         if (html.contains("Page OK!")) {
             state = State.ALIVE;
-            return true;
         } else {
-            state = State.TERMINAL;
-            return false;
+            badStateLogic();
         }
+        return state;
+    }
+
+    private void badStateLogic() {
+        if (state == State.TERMINAL) state = State.DEAD;
+        else state = State.TERMINAL;
     }
 
     public boolean hasActiveJobs() {
@@ -143,7 +144,5 @@ public class WebServerProxy {
         this.state = state;
     }
 
-    public enum State {
-        ALIVE, TERMINAL
-    }
+
 }

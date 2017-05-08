@@ -1,22 +1,23 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
 import com.sun.net.httpserver.HttpExchange;
-import jdk.nashorn.internal.ir.annotations.Ignore;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.ConnectException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class LoadBalancerThread extends Thread {
+    private static final List<String> VALID_MODELS = Arrays.asList("test01.txt", "test02.txt", "test03.txt",
+            "test04.txt", "test05.txt", "test-texmap.txt", "wood.txt");
     private HttpExchange httpExchange;
     private List<WebServerProxy> farm;
     private Map<Argument, Metric> metricCache;
     private Map<String, Estimator> estimators;
     private RepositoryService repositoryService;
-
-    private static final List<String> VALID_MODELS = Arrays.asList("test01.txt", "test02.txt", "test03.txt",
-            "test04.txt", "test05.txt", "test-texmap.txt", "wood.txt");
 
     LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Map<Argument, Metric> metricCache,
                        Map<String, Estimator> estimators, RepositoryService repositoryService) {
@@ -27,12 +28,25 @@ public class LoadBalancerThread extends Thread {
         this.repositoryService = repositoryService;
     }
 
+    private static Map<String, String> parseRequest(String query) {
+        TreeMap<String, String> paramsMap = new TreeMap<>();
+        String[] args = query.split("&");
+        for (String arg : args) {
+            String[] parameters = arg.split("=");
+            if (parameters.length == 2) {
+                paramsMap.put(parameters[0], parameters[1]);
+            }
+        }
+        if (!VALID_MODELS.contains(paramsMap.get("m"))) throw new RuntimeException();
+        return paramsMap;
+    }
+
     @Override
     public void run() {
         Request request = null;
         try {
             request = new Request(parseRequest(httpExchange.getRequestURI().getQuery()));
-        } catch(RuntimeException e) {
+        } catch (RuntimeException e) {
             System.out.println("Received invalid request, ignoring");
             String response = "Invalid image parameters";
             try {
@@ -56,7 +70,7 @@ public class LoadBalancerThread extends Thread {
         try {
             node.dispatch(httpExchange, request);
             System.out.println("[Completed] " + request.getId() + " finished in " +
-                    (System.currentTimeMillis()-request.getTimestamp()) + " ms");
+                    (System.currentTimeMillis() - request.getTimestamp()) + " ms");
         } catch (ConnectException e) {
             //Não devemos estar logo a mandar o nó dar uma volta,
             // devemos dar + hipóteses ou colocar o nó em grace time
@@ -69,18 +83,5 @@ public class LoadBalancerThread extends Thread {
         } finally {
             httpExchange.close();
         }
-    }
-
-    private static Map<String, String> parseRequest(String query) {
-        TreeMap<String, String> paramsMap = new TreeMap<>();
-        String[] args = query.split("&");
-        for (String arg : args) {
-            String[] parameters = arg.split("=");
-            if (parameters.length == 2) {
-                paramsMap.put(parameters[0], parameters[1]);
-            }
-        }
-        if(!VALID_MODELS.contains(paramsMap.get("m"))) throw new RuntimeException();
-        return paramsMap;
     }
 }

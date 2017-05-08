@@ -1,8 +1,5 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
-import com.amazonaws.services.dynamodbv2.xspec.NULL;
-
-import java.sql.Timestamp;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,17 +41,16 @@ public class Request {
         return argument;
     }
 
-    public void setMetric(Metric metric) {
-        this.metric = metric;
-    }
-
-
     public double getRank() {
         return metric.getRank();
     }
 
     public Metric getMetric() {
         return metric;
+    }
+
+    public void setMetric(Metric metric) {
+        this.metric = metric;
     }
 
     public long getTimestamp() {

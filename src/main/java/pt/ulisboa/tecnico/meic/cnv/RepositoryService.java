@@ -16,7 +16,7 @@ public class RepositoryService {
     private final String PRIMARY_KEY_NAME = "id";
     private final AmazonDynamoDB repository;
 
-    public RepositoryService(){
+    public RepositoryService() {
         AWSCredentials credentials = null;
         try {
             credentials = new ProfileCredentialsProvider().getCredentials();
@@ -34,13 +34,13 @@ public class RepositoryService {
     //Given a argument, returns a Metric corresponding to f, sc, sr, wc, wr, coff, roff
     //return null if not found
     //TODO
-    public Metric getMetric(Argument argument){
-        return new Metric(1,2,3);
+    public Metric getMetric(Argument argument) {
+        return new Metric(1, 2, 3);
     }
 
     //Given an argument, returns a Metric list corresponding to f, used to support Estimator
     //TODO
-    public List<Metric> getMetrics(Argument argument){
+    public List<Metric> getMetrics(Argument argument) {
         return null;
     }
 }

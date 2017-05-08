@@ -11,10 +11,10 @@ public class Metric {
         this.notTaken = notTaken;
     }
 
-    public double getRank(){
+    public double getRank() {
         //Implement
         //TODO
-        return (1d/3d) * mCount + (1d/3d) * taken + (1d/3d) * notTaken;
+        return (1d / 3d) * mCount + (1d / 3d) * taken + (1d / 3d) * notTaken;
     }
 
     @Override

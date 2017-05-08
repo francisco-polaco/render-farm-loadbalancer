@@ -26,13 +26,13 @@ public class WebServerProxy {
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
     }
 
-    public WebServerProxy(String address, int port){
+    public WebServerProxy(String address, int port) {
         this.address = address;
         this.port = port;
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
     }
 
-    public long getLastTimeUsed(){
+    public long getLastTimeUsed() {
         return this.lastTimeUsed;
     }
 
@@ -56,11 +56,10 @@ public class WebServerProxy {
             is.close();
             os.close();
             activeJobs.remove(request);
-        }
-        catch(IOException e){
+        } catch (IOException e) {
             activeJobs.remove(request);
-            if(is != null) is.close();
-            if(os != null) os.close();
+            if (is != null) is.close();
+            if (os != null) os.close();
             throw e;
         }
     }
@@ -90,7 +89,7 @@ public class WebServerProxy {
 
     public double getAvgRank() {
         double sumRank = 0;
-        for(Request request: activeJobs) {
+        for (Request request : activeJobs) {
             sumRank += request.getRank();
         }
 
@@ -99,7 +98,7 @@ public class WebServerProxy {
 
     public double getAvgRank(Request r) {
         double sumRank = r.getRank();
-        for(Request request: activeJobs) {
+        for (Request request : activeJobs) {
             sumRank += request.getRank();
         }
 
@@ -107,13 +106,13 @@ public class WebServerProxy {
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return "NODE{remoteURL:" + getRemoteURL() + ", lastTimeUsed:" + lastTimeUsed +
                 ", activeJobs: " + activeJobs + "}";
     }
 
     @Override
-    public boolean equals(Object o){
+    public boolean equals(Object o) {
 
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
@@ -122,7 +121,7 @@ public class WebServerProxy {
         return address.equals(wsp.getAddress()) && port == wsp.getPort();
     }
 
-    public String getRemoteURL(){
+    public String getRemoteURL() {
         return "http://" + address + ":" + port;
     }
 }

@@ -3,7 +3,6 @@ package pt.ulisboa.tecnico.meic.cnv;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import com.sun.org.apache.regexp.internal.RE;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
@@ -14,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 
 public class LoadBalancer {
+    private static final int CACHE_THRESHOLD = 10; // fixme bernardo what do you think?
     private static int PORT = 8000;
 
     //List containing all available nodes
@@ -39,8 +39,7 @@ public class LoadBalancer {
         try {
             String argPort = cmd.getOptionValue("p");
             if (argPort != null) PORT = Integer.valueOf(argPort);
-        }
-        catch(RuntimeException e){
+        } catch (RuntimeException e) {
             e.printStackTrace();
             System.out.println("Trying default port...");
         }
@@ -53,6 +52,7 @@ public class LoadBalancer {
             System.exit(1);
         }
 
+        new ClearCacheTableTask();
         server.createContext("/r.html", new MyHandler());
         System.out.println("Load balancer is running at *:" + PORT);
         server.start();
@@ -65,7 +65,7 @@ public class LoadBalancer {
             }
         });
 
-        if(cmd.hasOption("cli")) {
+        if (cmd.hasOption("cli")) {
             (new CLI()).start();
         }
     }
@@ -79,7 +79,7 @@ public class LoadBalancer {
 
     private static class CLI extends Thread {
         @Override
-        public void run(){
+        public void run() {
             System.out.println("Enter one of the following commands:");
             System.out.println("+ ip:port ~~ adds new webserver to farm");
             System.out.println("- ip:port ~~ removes webserver from farm");
@@ -132,11 +132,10 @@ public class LoadBalancer {
                             for (String s : servers) {
                                 try {
                                     WebServerProxy wsp = new WebServerProxy(s);
-                                    if(farm.contains(wsp)){
+                                    if (farm.contains(wsp)) {
                                         farm.remove(wsp);
                                         System.out.println("Removed node from farm");
-                                    }
-                                    else
+                                    } else
                                         System.out.println("Node not found");
                                 } catch (RuntimeException e) {
                                     System.out.println("Invalid node address");
@@ -156,11 +155,24 @@ public class LoadBalancer {
 
                 }
 
-            }
-            catch(RuntimeException e){
+            } catch (RuntimeException e) {
 
             }
             System.exit(1);
+        }
+    }
+
+    private static class ClearCacheTableTask extends TimerTask {
+
+        public ClearCacheTableTask() {
+            new Timer().schedule(this, 10 * 1000);
+        }
+
+        @Override
+        public void run() {
+            if (metricCache.size() < CACHE_THRESHOLD) return;
+            metricCache.clear();
+            new ClearCacheTableTask();
         }
     }
 }

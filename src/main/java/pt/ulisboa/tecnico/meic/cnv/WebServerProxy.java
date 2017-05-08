@@ -2,12 +2,11 @@ package pt.ulisboa.tecnico.meic.cnv;
 
 import com.amazonaws.util.IOUtils;
 import com.sun.net.httpserver.HttpExchange;
+import org.jsoup.Jsoup;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -20,6 +19,7 @@ public class WebServerProxy {
     private int port;
     private long lastTimeUsed;
     private List<Request> activeJobs;
+    private State state = State.ALIVE;
 
     public WebServerProxy(String remoteAddress) throws ArrayIndexOutOfBoundsException, NumberFormatException {
         String[] args = remoteAddress.split(":");
@@ -69,12 +69,18 @@ public class WebServerProxy {
     boolean isAvailable() {
         // We should be checking against ping page!
         // Any Open port on other machine
+        String html;
         try {
-            try (Socket soc = new Socket()) {
-                soc.connect(new InetSocketAddress(address, port), PING_TIMEOUT_MS);
-            }
+            html = Jsoup.connect("http://" + address + ":" + port + "/test").get().html();
+        } catch (IOException e) {
+            state = State.TERMINAL;
+            return false;
+        }
+        if (html.contains("Page OK!")) {
+            state = State.ALIVE;
             return true;
-        } catch (IOException ex) {
+        } else {
+            state = State.TERMINAL;
             return false;
         }
     }
@@ -127,5 +133,17 @@ public class WebServerProxy {
 
     public String getRemoteURL() {
         return "http://" + address + ":" + port;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
+    }
+
+    public enum State {
+        ALIVE, TERMINAL
     }
 }

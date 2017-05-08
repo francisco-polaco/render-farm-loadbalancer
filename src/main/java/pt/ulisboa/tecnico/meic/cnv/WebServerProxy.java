@@ -6,6 +6,7 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.net.URLConnection;
@@ -14,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class WebServerProxy {
+    private static final int PING_TIMEOUT_MS = 1000; // FIXME I think this is too much, this is not even close to a ping to the US using a home service.
     private String address;
     private int port;
     private long lastTimeUsed;
@@ -64,15 +66,17 @@ public class WebServerProxy {
         }
     }
 
-    public boolean isAvailable() {
-        //We should be checking against ping page!
-        //TODO
-        try (Socket socket = new Socket(address, port)) {
+    boolean isAvailable() {
+        // We should be checking against ping page!
+        // Any Open port on other machine
+        try {
+            try (Socket soc = new Socket()) {
+                soc.connect(new InetSocketAddress(address, port), PING_TIMEOUT_MS);
+            }
             return true;
         } catch (IOException ex) {
-        /* ignore */
+            return false;
         }
-        return false;
     }
 
     public boolean hasActiveJobs() {

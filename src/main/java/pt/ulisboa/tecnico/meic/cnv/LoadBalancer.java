@@ -16,6 +16,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static pt.ulisboa.tecnico.meic.cnv.State.ALIVE;
 
 public class LoadBalancer {
+    public static final int DELAY_CLEAR_CACHE = 10 * 1000;
+    public static final int DELAY_CHECK_PROXYS = 10 * 1000;
     private static final int CACHE_THRESHOLD = 10; // fixme bernardo what do you think?
     private static int PORT = 8000;
 
@@ -55,7 +57,7 @@ public class LoadBalancer {
             System.exit(1);
         }
 
-        new ClearCacheTableTask();
+        launchTimerTasks();
         server.createContext("/r.html", new MyHandler());
         System.out.println("Load balancer is running at *:" + PORT);
         server.start();
@@ -71,6 +73,11 @@ public class LoadBalancer {
         if (cmd.hasOption("cli")) {
             (new CLI()).start();
         }
+    }
+
+    private static void launchTimerTasks() {
+        new ClearCacheTableTask();
+        new CheckWebServerProxysTask();
     }
 
     private static class MyHandler implements HttpHandler {
@@ -158,7 +165,7 @@ public class LoadBalancer {
 
                 }
 
-            } catch (RuntimeException e) {
+            } catch (RuntimeException ignored) {
 
             }
             System.exit(1);
@@ -167,8 +174,8 @@ public class LoadBalancer {
 
     private static class ClearCacheTableTask extends TimerTask {
 
-        public ClearCacheTableTask() {
-            new Timer().schedule(this, 10 * 1000);
+        ClearCacheTableTask() {
+            new Timer().schedule(this, DELAY_CLEAR_CACHE);
         }
 
         @Override
@@ -181,8 +188,8 @@ public class LoadBalancer {
 
     private static class CheckWebServerProxysTask extends TimerTask {
 
-        public CheckWebServerProxysTask() {
-            new Timer().schedule(this, 10 * 1000);
+        CheckWebServerProxysTask() {
+            new Timer().schedule(this, DELAY_CHECK_PROXYS);
         }
 
         @Override
@@ -193,9 +200,7 @@ public class LoadBalancer {
                     i -= 1; // We need to check the same position since it will be removed.
                 }
             }
-            if (metricCache.size() < CACHE_THRESHOLD) return;
-            metricCache.clear();
-            new ClearCacheTableTask();
+            new CheckWebServerProxysTask();
         }
     }
 }

@@ -91,7 +91,7 @@ public class RepositoryService {
     }
 
     //Given an argument, returns a Metric list corresponding to f, used to support Estimator
-    public List<Metric> getMetrics(Argument argument) {
+    public Map<Argument, Metric> getMetrics(Argument argument) {
         // Scan items for metrics with a file attribute equal to argument.file
         HashMap<String, Condition> scanFilter = new HashMap<>();
         // Getting a condition ready
@@ -99,7 +99,34 @@ public class RepositoryService {
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel())); //S means string
         scanFilter.put("file", condition); // we want to filter by file
+        ScanRequest scanRequest = new ScanRequest(TABLE_NAME).withScanFilter(scanFilter);
+        ScanResult scanResult = repository.scan(scanRequest);
 
-        return query(scanFilter);
+        List<Map<String, AttributeValue>> queryResult = scanResult.getItems();
+        HashMap<Argument, Metric> toRet = new HashMap<>();
+        for (Map<String, AttributeValue> element : queryResult) {
+            // Unfortunately we need to build things using strings
+            toRet.put(new Argument(element.get("file").toString(), Integer.valueOf(element.get("sc").getS()),
+                            Integer.valueOf(element.get("sr").getS()), Integer.valueOf(element.get("wc").getS()),
+                            Integer.valueOf(element.get("wr").getS()), Integer.valueOf(element.get("roff").getS()),
+                            Integer.valueOf(element.get("coff").getS())),
+                    new Metric(Double.valueOf(element.get("m_count").getS()),
+                            Double.valueOf(element.get("taken").getS()),
+                            Double.valueOf(element.get("not_taken").getS())));
+        }
+        System.out.println(toRet);
+        return toRet;
     }
+
+    // Delete this if not needed
+    /*private boolean equal(Argument argument, Map<String, AttributeValue> element){
+        return argument.getModel().equalsIgnoreCase(element.get("file").toString()) &&
+                argument.getSceneColumns() == Integer.valueOf(element.get("sc").toString()) &&
+                argument.getSceneRows() == Integer.valueOf(element.get("sr").toString()) &&
+                argument.getWindowColumns() == Integer.valueOf(element.get("wc").toString()) &&
+                argument.getWindowRows() == Integer.valueOf(element.get("wr").toString()) &&
+                argument.getColumnOffset() == Integer.valueOf(element.get("coff").toString()) &&
+                argument.getRowOffset() == Integer.valueOf(element.get("roff").toString());
+
+    }*/
 }

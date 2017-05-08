@@ -19,12 +19,17 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
     @Override
     public WebServerProxy chooseBestNode(Request request) {
-        Metric metric;
+        Metric metric = null;
         Argument argument = request.getArgument();
 
         //the metric is not in cache
         if (metricCache.get(argument) == null) {
-            metric = repositoryService.getMetric(argument);
+            try {
+                metric = repositoryService.getMetric(argument);
+            } catch (MultipleResultsException e) {
+                final List<Metric> multipleResults = e.getMultipleResults();
+                //FIXME shoule we do something?
+            }
 
             //but it's in the database!!
             if (metric != null) {

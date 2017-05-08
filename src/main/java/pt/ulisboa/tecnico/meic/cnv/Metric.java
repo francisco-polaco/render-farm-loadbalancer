@@ -1,6 +1,10 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
 public class Metric {
+    private static final double COUNT_RATIO = 1d / 3d;
+    private static final double TAKEN_RATIO = 1d / 3d;
+    private static final double NOT_TAKEN_RATIO = 1d / 3d;
+
     private double mCount;
     private double taken;
     private double notTaken;
@@ -14,7 +18,7 @@ public class Metric {
     public double getRank() {
         //Implement
         //TODO
-        return (1d / 3d) * mCount + (1d / 3d) * taken + (1d / 3d) * notTaken;
+        return COUNT_RATIO * mCount + TAKEN_RATIO * taken + NOT_TAKEN_RATIO * notTaken;
     }
 
     @Override

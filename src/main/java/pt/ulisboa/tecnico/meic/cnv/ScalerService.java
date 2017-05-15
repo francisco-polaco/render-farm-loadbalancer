@@ -1,0 +1,124 @@
+package pt.ulisboa.tecnico.meic.cnv;
+
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
+import com.amazonaws.services.cloudwatch.model.Datapoint;
+import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
+import com.amazonaws.services.ec2.model.*;
+
+import java.util.*;
+
+public class ScalerService {
+
+    // this examples are purely theoretical, we need to to consensus on this
+    private static final String IMAGE_ID = "ami-a0e9d7c6";
+    private static final String INSTANCE_TYPE = "t2.micro";
+    private static final String SECURITY_GROUP = "ssh+http8000";
+    private static final String KEY_NAME = "batata";
+
+    private static AmazonEC2 ec2;
+    private static AmazonCloudWatch cloudWatch;
+
+
+    private static void init() throws Exception {
+        AWSCredentials credentials = null;
+        try {
+            credentials = new ProfileCredentialsProvider().getCredentials();
+        } catch (Exception e) {
+            throw new AmazonClientException(
+                    "Cannot load the credentials from the credential profiles file. " +
+                            "Please make sure that your credentials file is at the correct " +
+                            "location (~/.aws/credentials), and is in valid format.",
+                    e);
+        }
+        ec2 = AmazonEC2ClientBuilder.standard().withRegion("eu-west-1").withCredentials(new AWSStaticCredentialsProvider(credentials)).build();
+
+        cloudWatch = AmazonCloudWatchClientBuilder.standard().withRegion("eu-west-1").withCredentials(new AWSStaticCredentialsProvider(credentials)).build();
+    }
+
+
+    // Statistic can be per example CPUUtilization
+    // Function can be per example Average
+    public static void retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
+        try {
+            /* TODO total observation time in milliseconds */
+            long offsetInMilliseconds = 1000 * 60 * 10;
+            Dimension instanceDimension = new Dimension();
+            instanceDimension.setName("InstanceId");
+            List<Dimension> dims = new ArrayList<Dimension>();
+            dims.add(instanceDimension);
+
+            String name = instance.getInstanceId();
+            String state = instance.getState().getName();
+            if (state.equals("running")) {
+                System.out.println("running instance id = " + name);
+                instanceDimension.setValue(name);
+                GetMetricStatisticsRequest request = new GetMetricStatisticsRequest()
+                        .withStartTime(new Date(new Date().getTime() - offsetInMilliseconds))
+                        .withNamespace("AWS/EC2")
+                        .withPeriod(60)
+                        .withMetricName(statistic)
+                        .withStatistics(function)
+                        .withDimensions(instanceDimension)
+                        .withEndTime(new Date());
+                GetMetricStatisticsResult getMetricStatisticsResult =
+                        cloudWatch.getMetricStatistics(request);
+                List<Datapoint> datapoints = getMetricStatisticsResult.getDatapoints();
+                for (Datapoint dp : datapoints) {
+                    System.out.println(" CPU utilization for instance " + name +
+                            " = " + dp.getAverage());
+                }
+            } else {
+                System.out.println("instance id = " + name);
+            }
+            System.out.println("Instance State : " + state + ".");
+
+        } catch (AmazonServiceException ase) {
+            System.out.println("Caught Exception: " + ase.getMessage());
+            System.out.println("Reponse Status Code: " + ase.getStatusCode());
+            System.out.println("Error Code: " + ase.getErrorCode());
+            System.out.println("Request ID: " + ase.getRequestId());
+        }
+    }
+
+    private static List<Instance> startInstance(int min, int max) {
+        System.out.println("Starting min: " + min + " and max: " + max + " instances");
+        RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
+
+        runInstancesRequest.withImageId(IMAGE_ID)
+                .withInstanceType(INSTANCE_TYPE)
+                .withMinCount(min)
+                .withMaxCount(max)
+                .withKeyName(KEY_NAME)
+                .withSecurityGroups(SECURITY_GROUP);
+
+        RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
+        return runInstancesResult.getReservation().getInstances();
+    }
+
+    private static Set<Instance> getAllInstances() {
+        DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
+        List<Reservation> reservations = describeInstancesResult.getReservations();
+        Set<Instance> instances = new HashSet<Instance>();
+
+        System.out.println("Total reservations = " + reservations.size());
+
+        for (Reservation reservation : reservations)
+            instances.addAll(reservation.getInstances());
+
+        System.out.println("Total instances = " + instances.size());
+
+        return instances;
+    }
+
+
+}

@@ -25,15 +25,20 @@ public class ScalerService {
     private static final String SECURITY_GROUP = "ssh+http8000";
     private static final String KEY_NAME = "batata";
 
-    private static AmazonEC2 ec2;
-    private static AmazonCloudWatch cloudWatch;
+    private AmazonEC2 ec2;
+    private AmazonCloudWatch cloudWatch;
 
 
-    private static void init() throws Exception {
+    public ScalerService() {
+        init();
+    }
+
+    private void init() {
         AWSCredentials credentials = null;
         try {
             credentials = new ProfileCredentialsProvider().getCredentials();
         } catch (Exception e) {
+            System.err.println("");
             throw new AmazonClientException(
                     "Cannot load the credentials from the credential profiles file. " +
                             "Please make sure that your credentials file is at the correct " +
@@ -48,7 +53,7 @@ public class ScalerService {
 
     // Statistic can be per example CPUUtilization
     // Function can be per example Average
-    public static void retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
+    public void retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
         try {
             /* TODO total observation time in milliseconds */
             long offsetInMilliseconds = 1000 * 60 * 10;
@@ -90,7 +95,7 @@ public class ScalerService {
         }
     }
 
-    private static List<Instance> startInstance(int min, int max) {
+    public List<Instance> startInstance(int min, int max) {
         System.out.println("Starting min: " + min + " and max: " + max + " instances");
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
 
@@ -105,7 +110,7 @@ public class ScalerService {
         return runInstancesResult.getReservation().getInstances();
     }
 
-    private static Set<Instance> getAllInstances() {
+    public Set<Instance> getAllInstances() {
         DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
         List<Reservation> reservations = describeInstancesResult.getReservations();
         Set<Instance> instances = new HashSet<Instance>();

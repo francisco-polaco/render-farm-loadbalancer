@@ -37,7 +37,7 @@ public class RepositoryService {
 
     //Given a argument, returns a Metric corresponding to f, sc, sr, wc, wr, coff, roff
     //return null if not found
-    public List<Metric> getMetricDiogo(Argument argument) {
+    public List<Metric> getGeneralMetrics(Argument argument) {
         HashMap<String, Condition> scanFilter = new HashMap<>();
         // Getting a condition ready
         scanFilter.put("file", new Condition()
@@ -77,8 +77,29 @@ public class RepositoryService {
         return query(scanFilter);
     }
 
+    public List<Metric> getDiogoMetrics(Argument argument, ComparisonOperator wcComparator,
+                                        ComparisonOperator wrComparator) {
+        HashMap<String, Condition> scanFilter = new HashMap<>();
+        // Getting a condition ready
+        scanFilter.put("file", new Condition()
+                .withComparisonOperator(ComparisonOperator.EQ.toString())
+                .withAttributeValueList(new AttributeValue().withS(argument.getModel())));
+
+        if (argument.getWindowColumns() != -1)
+            scanFilter.put("wc", new Condition()
+                    .withComparisonOperator(wcComparator.toString())
+                    .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowColumns()))));
+
+        if (argument.getWindowRows() != -1)
+            scanFilter.put("wr", new Condition()
+                    .withComparisonOperator(wrComparator.toString())
+                    .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowRows()))));
+
+        return query(scanFilter);
+    }
+
     public Metric getMetric(Argument argument) {
-        final List<Metric> metricDiogo = getMetricDiogo(argument);
+        final List<Metric> metricDiogo = getGeneralMetrics(argument);
         if (metricDiogo.size() == 0) return null;
         else return metricDiogo.get(0);
     }

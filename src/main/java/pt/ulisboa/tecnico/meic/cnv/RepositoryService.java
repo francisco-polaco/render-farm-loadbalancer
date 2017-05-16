@@ -37,41 +37,50 @@ public class RepositoryService {
 
     //Given a argument, returns a Metric corresponding to f, sc, sr, wc, wr, coff, roff
     //return null if not found
-    public Metric getMetric(Argument argument) throws MultipleResultsException {
+    public List<Metric> getMetricDiogo(Argument argument) {
         HashMap<String, Condition> scanFilter = new HashMap<>();
         // Getting a condition ready
         scanFilter.put("file", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel())));
 
-        scanFilter.put("sc", new Condition()
+        if (argument.getSceneColumns() != -1)
+            scanFilter.put("sc", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getSceneColumns()))));
 
-        scanFilter.put("sr", new Condition()
+        if (argument.getSceneRows() != -1)
+            scanFilter.put("sr", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getSceneRows()))));
 
-        scanFilter.put("wc", new Condition()
+        if (argument.getWindowColumns() != -1)
+            scanFilter.put("wc", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowColumns()))));
 
-        scanFilter.put("wr", new Condition()
+        if (argument.getWindowRows() != -1)
+            scanFilter.put("wr", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowRows()))));
 
-        scanFilter.put("coff", new Condition()
+        if (argument.getColumnOffset() != -1)
+            scanFilter.put("coff", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getColumnOffset()))));
 
-        scanFilter.put("roff", new Condition()
+        if (argument.getRowOffset() != -1)
+            scanFilter.put("roff", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getRowOffset()))));
 
-        List<Metric> metrics = query(scanFilter);
+        return query(scanFilter);
+    }
 
-        if (metrics.size() == 0) return null;
-        else return metrics.get(0);
+    public Metric getMetric(Argument argument) {
+        final List<Metric> metricDiogo = getMetricDiogo(argument);
+        if (metricDiogo.size() == 0) return null;
+        else return metricDiogo.get(0);
     }
 
     private List<Metric> query(HashMap<String, Condition> scanFilter) {

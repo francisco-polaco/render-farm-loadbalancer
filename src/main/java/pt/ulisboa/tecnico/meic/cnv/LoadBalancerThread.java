@@ -4,11 +4,12 @@ import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import static pt.ulisboa.tecnico.meic.cnv.State.DEAD;
 
 public class LoadBalancerThread extends Thread {
     private static final List<String> VALID_MODELS = Arrays.asList("test01.txt", "test02.txt", "test03.txt",
@@ -71,15 +72,11 @@ public class LoadBalancerThread extends Thread {
             node.dispatch(httpExchange, request);
             System.out.println("[Completed] " + request.getId() + " finished in " +
                     (System.currentTimeMillis() - request.getTimestamp()) + " ms");
-        } catch (ConnectException e) {
-            //Não devemos estar logo a mandar o nó dar uma volta,
-            // devemos dar + hipóteses ou colocar o nó em grace time
-            //TODO
-            System.out.println("Caught ConnectException, removing " + node.getRemoteURL() + " from farm");
-            farm.remove(node);
-            System.out.println("[Aborted] " + request.getId() + " aborted due to ConnectionException");
         } catch (IOException e) {
-            System.out.println("[Aborted] " + request.getId() + " aborted due to IOException");
+            System.out.println("[Aborted] " + request.getId() + " aborted due to " + e.getClass().getSimpleName());
+            if (node.isAvailable() == DEAD) {
+                farm.remove(node);
+            }
         } finally {
             httpExchange.close();
         }

@@ -9,9 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class WebServerProxy {
     private String address;
@@ -86,9 +84,20 @@ public class WebServerProxy {
         if (state == State.TERMINAL) {
             System.out.println(address + ":" + port + " is dead!");
             state = State.DEAD;
+            // ScalerService.getInstance().terminateInstances();
+        } else if (state == State.ZOMBIE) {
+
         } else {
-            System.out.println(address + ":" + port + " is in terminal state!");
-            state = State.TERMINAL;
+            System.out.println(address + ":" + port + " is in zombie state!");
+            state = State.ZOMBIE;
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    isAvailable();
+                    System.out.println(address + ":" + port + " is in terminal state!");
+                    state = State.TERMINAL;
+                }
+            }, 1000 * 20);
         }
     }
 

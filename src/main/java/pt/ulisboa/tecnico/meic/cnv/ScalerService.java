@@ -19,6 +19,8 @@ import java.util.*;
 
 public class ScalerService {
 
+    private static final ScalerService ourInstance = new ScalerService();
+
     // this examples are purely theoretical, we need to to consensus on this
     private static final String IMAGE_ID = "ami-d18b83b7";
     private static final String INSTANCE_TYPE = "t2.micro";
@@ -28,11 +30,13 @@ public class ScalerService {
     private AmazonEC2 ec2;
     private AmazonCloudWatch cloudWatch;
 
-
-    public ScalerService() {
+    private ScalerService() {
         init();
     }
 
+    public static ScalerService getInstance() {
+        return ourInstance;
+    }
 
     private void init() {
         AWSCredentials credentials = null;

@@ -24,12 +24,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
         //the metric is not in cache
         if (metricCache.get(argument) == null) {
-            try {
-                metric = repositoryService.getMetric(argument);
-            } catch (MultipleResultsException e) {
-                final List<Metric> multipleResults = e.getMultipleResults();
-                //FIXME shoule we do something?
-            }
+            metric = repositoryService.getMetric(argument);
 
             //but it's in the database!!
             if (metric != null) {

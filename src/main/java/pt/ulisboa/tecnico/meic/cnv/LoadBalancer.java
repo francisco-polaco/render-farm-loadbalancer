@@ -16,17 +16,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static pt.ulisboa.tecnico.meic.cnv.State.ALIVE;
 
 public class LoadBalancer {
-    public static final int DELAY_CLEAR_CACHE = 10 * 1000;
-    public static final int DELAY_CHECK_PROXYS = 10 * 1000;
-    private static final int CACHE_THRESHOLD = 10; // fixme bernardo what do you think?
+    static final int DELAY_CLEAR_CACHE = 10 * 1000 * 60;
+    static final int DELAY_CHECK_PROXYS = 10 * 1000;
+    private static final int CACHE_THRESHOLD = 200;
     private static int PORT = 8000;
 
     //List containing all available nodes
     private static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
 
     //We keep a cache metric to avoid contacting database all the time
-    //This could be a potential problem, so we should clean it some times during runtime
-    //TODO
     private static Map<Argument, Metric> metricCache = new Hashtable<>();
 
     //One estimator for each model

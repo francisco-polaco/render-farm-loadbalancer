@@ -82,9 +82,9 @@ public class RepositoryService {
         List<Metric> metricsToReturn = new ArrayList<>();
         for (Map<String, AttributeValue> element : queryResult) {
             // Unfortunately we need to build things using strings
-            metricsToReturn.add(new Metric(Double.valueOf(element.get("m_count").getS()),
-                    Double.valueOf(element.get("taken").getS()),
-                    Double.valueOf(element.get("not_taken").getS())));
+            metricsToReturn.add(new Metric(Long.valueOf(element.get("m_count").getS()),
+                    Long.valueOf(element.get("taken").getS()),
+                    Long.valueOf(element.get("not_taken").getS())));
         }
         System.out.println(metricsToReturn);
         return metricsToReturn;
@@ -110,9 +110,9 @@ public class RepositoryService {
                             Integer.valueOf(element.get("sr").getS()), Integer.valueOf(element.get("wc").getS()),
                             Integer.valueOf(element.get("wr").getS()), Integer.valueOf(element.get("roff").getS()),
                             Integer.valueOf(element.get("coff").getS())),
-                    new Metric(Double.valueOf(element.get("m_count").getS()),
-                            Double.valueOf(element.get("taken").getS()),
-                            Double.valueOf(element.get("not_taken").getS())));
+                    new Metric(Long.valueOf(element.get("m_count").getS()),
+                            Long.valueOf(element.get("taken").getS()),
+                            Long.valueOf(element.get("not_taken").getS())));
         }
         System.out.println(toRet);
         return toRet;

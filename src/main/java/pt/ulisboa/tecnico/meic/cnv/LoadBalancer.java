@@ -115,7 +115,7 @@ public class LoadBalancer {
                             }
                             for (String s : servers) {
                                 try {
-                                    WebServerProxy wsp = new WebServerProxy(s);
+                                    WebServerProxy wsp = new WebServerProxy(s, null);
                                     if (farm.contains(wsp)) {
                                         System.out.println("Node already exists");
                                         continue;
@@ -139,7 +139,7 @@ public class LoadBalancer {
                             }
                             for (String s : servers) {
                                 try {
-                                    WebServerProxy wsp = new WebServerProxy(s);
+                                    WebServerProxy wsp = new WebServerProxy(s, null);
                                     if (farm.contains(wsp)) {
                                         farm.remove(wsp);
                                         System.out.println("Removed node from farm");

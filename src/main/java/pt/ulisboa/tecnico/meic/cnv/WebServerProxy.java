@@ -1,5 +1,6 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
+import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.util.IOUtils;
 import com.sun.net.httpserver.HttpExchange;
 import org.jsoup.Jsoup;
@@ -17,12 +18,14 @@ public class WebServerProxy {
     private long lastTimeUsed;
     private List<Request> activeJobs;
     private State state = State.ALIVE;
+    private Instance myInstance;
 
-    public WebServerProxy(String remoteAddress) throws ArrayIndexOutOfBoundsException, NumberFormatException {
+    public WebServerProxy(String remoteAddress, Instance instance) throws ArrayIndexOutOfBoundsException, NumberFormatException {
         String[] args = remoteAddress.split(":");
         this.address = args[0];
         this.port = Integer.valueOf(args[1]);
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
+        myInstance = instance;
     }
 
     public WebServerProxy(String address, int port) {
@@ -84,18 +87,19 @@ public class WebServerProxy {
         if (state == State.TERMINAL) {
             System.out.println(address + ":" + port + " is dead!");
             state = State.DEAD;
-            // ScalerService.getInstance().terminateInstances();
-        } else if (state == State.ZOMBIE) {
-
-        } else {
+            if (myInstance != null)
+                ScalerService.getInstance().terminateInstances(Collections.singletonList(myInstance.getInstanceId()));
+        } else if (state != State.ZOMBIE && state != State.DEAD) {
             System.out.println(address + ":" + port + " is in zombie state!");
             state = State.ZOMBIE;
             new Timer().schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    isAvailable();
-                    System.out.println(address + ":" + port + " is in terminal state!");
-                    state = State.TERMINAL;
+                    final State proxyState = isAvailable();
+                    if (proxyState == State.ZOMBIE) {
+                        System.out.println(address + ":" + port + " is in terminal state!");
+                        state = State.TERMINAL;
+                    }
                 }
             }, 1000 * 20);
         }

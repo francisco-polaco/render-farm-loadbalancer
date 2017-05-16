@@ -74,6 +74,7 @@ public class WebServerProxy {
             return state;
         }
         if (html.contains("Page OK!")) {
+            System.out.println(address + ":" + port + " is OK!");
             state = State.ALIVE;
         } else {
             badStateLogic();
@@ -82,8 +83,13 @@ public class WebServerProxy {
     }
 
     private void badStateLogic() {
-        if (state == State.TERMINAL) state = State.DEAD;
-        else state = State.TERMINAL;
+        if (state == State.TERMINAL) {
+            System.out.println(address + ":" + port + " is dead!");
+            state = State.DEAD;
+        } else {
+            System.out.println(address + ":" + port + " is in terminal state!");
+            state = State.TERMINAL;
+        }
     }
 
     public boolean hasActiveJobs() {

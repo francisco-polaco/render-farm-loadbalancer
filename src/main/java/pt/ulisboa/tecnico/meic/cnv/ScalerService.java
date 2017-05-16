@@ -20,10 +20,10 @@ import java.util.*;
 public class ScalerService {
 
     // this examples are purely theoretical, we need to to consensus on this
-    private static final String IMAGE_ID = "ami-a0e9d7c6";
+    private static final String IMAGE_ID = "ami-d18b83b7";
     private static final String INSTANCE_TYPE = "t2.micro";
-    private static final String SECURITY_GROUP = "ssh+http8000";
-    private static final String KEY_NAME = "batata";
+    private static final String SECURITY_GROUP = "CNV-ssh+8000+80";
+    private static final String KEY_NAME = "cnv-proj";
 
     private AmazonEC2 ec2;
     private AmazonCloudWatch cloudWatch;
@@ -32,6 +32,7 @@ public class ScalerService {
     public ScalerService() {
         init();
     }
+
 
     private void init() {
         AWSCredentials credentials = null;
@@ -48,6 +49,93 @@ public class ScalerService {
         ec2 = AmazonEC2ClientBuilder.standard().withRegion("eu-west-1").withCredentials(new AWSStaticCredentialsProvider(credentials)).build();
 
         cloudWatch = AmazonCloudWatchClientBuilder.standard().withRegion("eu-west-1").withCredentials(new AWSStaticCredentialsProvider(credentials)).build();
+    }
+
+    public void startInstances(List<String> instanceIds) {
+        System.out.println("Starting instances...");
+        for (String id : instanceIds)
+            System.out.println("Starting: " + id);
+
+        StartInstancesRequest startInstancesRequest = new StartInstancesRequest();
+
+        startInstancesRequest = startInstancesRequest.withInstanceIds(instanceIds);
+        ec2.startInstances(startInstancesRequest);
+    }
+
+    public void stopInstances(List<String> instanceIds) {
+        System.out.println("Stopping instances...");
+        for (String id : instanceIds)
+            System.out.println("Stopping: " + id);
+
+        StopInstancesRequest stopInstancesRequest = new StopInstancesRequest();
+
+        stopInstancesRequest = stopInstancesRequest.withInstanceIds(instanceIds);
+        ec2.stopInstances(stopInstancesRequest);
+    }
+
+
+    public void terminateInstances(List<String> instanceIds) {
+        System.out.println("Terminating instances...");
+        for (String id : instanceIds)
+            System.out.println("Terminating: " + id);
+
+        TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest();
+
+        terminateInstancesRequest = terminateInstancesRequest.withInstanceIds(instanceIds);
+        ec2.terminateInstances(terminateInstancesRequest);
+    }
+
+    public List<Instance> createInstance(int min, int max) {
+        System.out.println("Starting min: " + min + " and max: " + max + " instances");
+        RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
+
+        runInstancesRequest.withImageId(IMAGE_ID)
+                .withInstanceType(INSTANCE_TYPE)
+                .withMinCount(min)
+                .withMaxCount(max)
+                .withKeyName(KEY_NAME)
+                .withMonitoring(true)
+                .withSecurityGroups(SECURITY_GROUP);
+
+        RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
+        return runInstancesResult.getReservation().getInstances();
+    }
+
+    public List<Instance> getAllInstances() {
+        DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
+        List<Reservation> reservations = describeInstancesResult.getReservations();
+        Set<Instance> instances = new HashSet<Instance>();
+
+        System.out.println("Total reservations = " + reservations.size());
+
+        for (Reservation reservation : reservations)
+            instances.addAll(reservation.getInstances());
+
+        System.out.println("Total instances = " + instances.size());
+
+        return new ArrayList<>(instances);
+    }
+
+    public List<Instance> getInstancesInState(String state) {
+        DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
+        List<Reservation> reservations = describeInstancesResult.getReservations();
+        Set<Instance> instances = new HashSet<Instance>();
+
+        for (Reservation reservation : reservations) {
+            instances.addAll(reservation.getInstances());
+        }
+
+        Set<Instance> toRemove = new HashSet<Instance>();
+        for (Instance instance : instances) {
+            if (!instance.getState().getName().equalsIgnoreCase(state))
+                toRemove.add(instance);
+        }
+        instances.removeAll(toRemove);
+
+        System.out.print("Instances in state " + state + " with ids: " + prettyPrintInstances(instances));
+
+
+        return new ArrayList<>(instances);
     }
 
 
@@ -95,35 +183,15 @@ public class ScalerService {
         }
     }
 
-    public List<Instance> startInstance(int min, int max) {
-        System.out.println("Starting min: " + min + " and max: " + max + " instances");
-        RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
 
-        runInstancesRequest.withImageId(IMAGE_ID)
-                .withInstanceType(INSTANCE_TYPE)
-                .withMinCount(min)
-                .withMaxCount(max)
-                .withKeyName(KEY_NAME)
-                .withSecurityGroups(SECURITY_GROUP);
-
-        RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
-        return runInstancesResult.getReservation().getInstances();
+    private String prettyPrintInstances(Collection<Instance> instances) {
+        StringBuilder stringBuilder = new StringBuilder();
+        Iterator<Instance> iterator = instances.iterator();
+        while (iterator.hasNext()) {
+            Instance instance = iterator.next();
+            stringBuilder.append(!iterator.hasNext() ? instance.getInstanceId() + "\n" : instance.getInstanceId() + ", ");
+        }
+        return stringBuilder.toString();
     }
-
-    public Set<Instance> getAllInstances() {
-        DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
-        List<Reservation> reservations = describeInstancesResult.getReservations();
-        Set<Instance> instances = new HashSet<Instance>();
-
-        System.out.println("Total reservations = " + reservations.size());
-
-        for (Reservation reservation : reservations)
-            instances.addAll(reservation.getInstances());
-
-        System.out.println("Total instances = " + instances.size());
-
-        return instances;
-    }
-
 
 }

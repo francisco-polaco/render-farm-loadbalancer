@@ -1,68 +1,67 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
-import Jama.Matrix;
-import Jama.QRDecomposition;
+import java.util.Map;
+import java.util.Random;
 
 public class Estimator {
-    private final Matrix beta;  // regression coefficients
-    private double SSE;         // sum of squared
-    private double SST;         // sum of squared
 
-    public Estimator(double[][] x, double[] y) {
-        if (x.length != y.length) throw new RuntimeException("Dimensions don't agree");
-        int n = y.length;
-
-        Matrix X = new Matrix(x);
-
-        // create matrix from vector
-        Matrix Y = new Matrix(y, n);
-
-        // find least squares solution
-        QRDecomposition qr = new QRDecomposition(X);
-        beta = qr.solve(Y);
+    private final double THRESHOLD_PERCENTAGE = 0.1;
+    private final double PROBABILITY_LRU = 0.25;
+    private Map<Argument, Metric> metricCache;
+    private RepositoryService repositoryService;
 
 
-        // mean of y[] values
-        double sum = 0.0;
-        for (int i = 0; i < n; i++)
-            sum += y[i];
-        double mean = sum / n;
+    public Estimator(Map<Argument, Metric> metricCache, RepositoryService repositoryService) {
+        this.metricCache = metricCache;
+        this.repositoryService = repositoryService;
+    }
 
-        // total variation to be accounted for
-        for (int i = 0; i < n; i++) {
-            double dev = y[i] - mean;
-            SST += dev * dev;
+    public synchronized Metric estimate(Argument argument) {
+        Metric candidate = null;
+
+        // try to find an equal argument in cache
+        if (metricCache.containsKey(argument)) {
+            candidate = metricCache.get(argument);
         }
+        // try to find something close enough in the metricCache
+        else {
+            // something similar should have an equal model
+            for (Argument arg : metricCache.keySet()) {
+                if (arg.getModel().equals(argument.getModel()) && isSimilar(argument, arg))
+                    candidate = metricCache.get(arg);
+            }
 
-        // variation not accounted for
-        Matrix residuals = X.times(beta).minus(Y);
-        SSE = residuals.norm2() * residuals.norm2();
+            // have a probability of using LRU, to add randomness
+            if (new Random().nextFloat() <= (1 - PROBABILITY_LRU)) {
+                // cache can't suffice - try using dynamodb
+                if (candidate == null)
+                    candidate = chooseBestCandidate(argument, repositoryService.getMetricsEstimator(argument));
+            }
+        }
+        return candidate;
     }
 
-    public static void main(String[] args) {
-        double[][] x = {{1, 10, 20},
-                {1, 20, 40},
-                {1, 40, 15},
-                {1, 80, 100},
-                {1, 160, 23},
-                {1, 200, 18}};
-        double[] y = {243, 483, 508, 1503, 1764, 2129};
-        Estimator regression = new Estimator(x, y);
-
-        System.out.printf("%.2f + %.2fa + %.2fb  (R^2 = %.2f)\n",
-                regression.beta(0), regression.beta(1), regression.beta(2), regression.R2());
+    private Metric chooseBestCandidate(Argument request, Map<Argument, Metric> candidates) {
+        Metric candidate = null;
+        long min = -1;
+        for (Argument argument : candidates.keySet()) {
+            long res = isBetter(request, argument);
+            if (min == -1 || min >= res) {
+                min = res;
+                candidate = candidates.get(argument);
+            }
+        }
+        return candidate;
     }
 
-    public double beta(int j) {
-        return beta.get(j, 0);
+    private long isBetter(Argument request, Argument candidate) {
+        return Math.abs(request.getWindowColumns() - candidate.getWindowColumns()) + Math.abs(request.getWindowRows() + candidate.getWindowRows());
     }
 
-    public double R2() {
-        return 1.0 - SSE / SST;
-    }
 
-    public Metric getMetricEstimate(Argument argument) {
-        //TODO
-        return new Metric(0, 0, 0);
+    private synchronized boolean isSimilar(Argument request, Argument inMem) {
+        long reqComplexity = request.getWindowRows() * request.getWindowColumns();
+        double delta = Math.abs(reqComplexity - (inMem.getWindowRows() * inMem.getWindowColumns()));
+        return delta <= (THRESHOLD_PERCENTAGE * reqComplexity);
     }
 }

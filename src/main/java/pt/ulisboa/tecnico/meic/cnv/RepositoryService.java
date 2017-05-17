@@ -77,23 +77,28 @@ public class RepositoryService {
         return query(scanFilter);
     }
 
-    public List<Metric> getDiogoMetrics(Argument argument, ComparisonOperator wcComparator,
-                                        ComparisonOperator wrComparator) {
+    public List<Metric> getDiogoMetrics(Argument argument) {
         HashMap<String, Condition> scanFilter = new HashMap<>();
         // Getting a condition ready
         scanFilter.put("file", new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel())));
 
-        if (argument.getWindowColumns() != -1)
-            scanFilter.put("wc", new Condition()
-                    .withComparisonOperator(wcComparator.toString())
-                    .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowColumns()))));
+        scanFilter.put("wc", new Condition()
+                .withComparisonOperator(ComparisonOperator.GE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowColumns()))));
 
-        if (argument.getWindowRows() != -1)
-            scanFilter.put("wr", new Condition()
-                    .withComparisonOperator(wrComparator.toString())
-                    .withAttributeValueList(new AttributeValue().withS(String.valueOf(argument.getWindowRows()))));
+        scanFilter.put("wc", new Condition()
+                .withComparisonOperator(ComparisonOperator.LE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowColumns()))));
+
+        scanFilter.put("wr", new Condition()
+                .withComparisonOperator(ComparisonOperator.GE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowRows()))));
+
+        scanFilter.put("wr", new Condition()
+                .withComparisonOperator(ComparisonOperator.LE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowRows()))));
 
         return query(scanFilter);
     }
@@ -121,13 +126,31 @@ public class RepositoryService {
     }
 
     //Given an argument, returns a Metric list corresponding to f, used to support Estimator
-    public Map<Argument, Metric> getMetrics(Argument argument) {
+    public Map<Argument, Metric> getMetricsEstimator(Argument argument) {
         // Scan items for metrics with a file attribute equal to argument.file
         HashMap<String, Condition> scanFilter = new HashMap<>();
         // Getting a condition ready
         Condition condition = new Condition()
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel())); //S means string
+
+        scanFilter.put("wc", new Condition()
+                .withComparisonOperator(ComparisonOperator.GE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowColumns()))));
+
+        scanFilter.put("wc", new Condition()
+                .withComparisonOperator(ComparisonOperator.LE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowColumns()))));
+
+        scanFilter.put("wr", new Condition()
+                .withComparisonOperator(ComparisonOperator.GE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowRows()))));
+
+        scanFilter.put("wr", new Condition()
+                .withComparisonOperator(ComparisonOperator.LE)
+                .withAttributeValueList(new AttributeValue().withN(String.valueOf(argument.getWindowRows()))));
+
+
         scanFilter.put("file", condition); // we want to filter by file
         ScanRequest scanRequest = new ScanRequest(TABLE_NAME).withScanFilter(scanFilter);
         ScanResult scanResult = repository.scan(scanRequest);
@@ -136,17 +159,21 @@ public class RepositoryService {
         HashMap<Argument, Metric> toRet = new HashMap<>();
         for (Map<String, AttributeValue> element : queryResult) {
             // Unfortunately we need to build things using strings
-            toRet.put(new Argument(element.get("file").toString(), Integer.valueOf(element.get("sc").getS()),
-                            Integer.valueOf(element.get("sr").getS()), Integer.valueOf(element.get("wc").getS()),
-                            Integer.valueOf(element.get("wr").getS()), Integer.valueOf(element.get("roff").getS()),
+            toRet.put(new Argument(element.get("file").toString(),
+                            Integer.valueOf(element.get("sc").getS()),
+                            Integer.valueOf(element.get("sr").getS()),
+                            Integer.valueOf(element.get("wc").getS()),
+                            Integer.valueOf(element.get("wr").getS()),
+                            Integer.valueOf(element.get("roff").getS()),
                             Integer.valueOf(element.get("coff").getS())),
+
                     new Metric(Long.valueOf(element.get("m_count").getS()),
                             Long.valueOf(element.get("taken").getS()),
                             Long.valueOf(element.get("not_taken").getS())));
         }
-        System.out.println(toRet);
         return toRet;
     }
+
 
     // Delete this if not needed
     /*private boolean equal(Argument argument, Map<String, AttributeValue> element){

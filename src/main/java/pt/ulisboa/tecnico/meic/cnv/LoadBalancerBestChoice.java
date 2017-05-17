@@ -33,7 +33,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             }
             //get an estimate
             else {
-                metric = estimator.getMetricEstimate(argument);
+                //metric = estimator.getMetricEstimate(argument);
                 request.setMetric(metric);
             }
         } else {

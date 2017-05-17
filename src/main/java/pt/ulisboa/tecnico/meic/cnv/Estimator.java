@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Estimator {
 
-    private final double THRESHOLD_PERCENTAGE = 0.1;
+    private final double THRESHOLD_PERCENTAGE = 0.2;
     private final double PROBABILITY_LRU = 0.25;
     private Map<Argument, Metric> metricCache;
     private RepositoryService repositoryService;
@@ -41,7 +41,7 @@ public class Estimator {
         return candidate;
     }
 
-    private Metric chooseBestCandidate(Argument request, Map<Argument, Metric> candidates) {
+    private synchronized Metric chooseBestCandidate(Argument request, Map<Argument, Metric> candidates) {
         Metric candidate = null;
         long min = -1;
         for (Argument argument : candidates.keySet()) {
@@ -54,7 +54,8 @@ public class Estimator {
         return candidate;
     }
 
-    private long isBetter(Argument request, Argument candidate) {
+    // a closer interval is a better estimate
+    private synchronized long isBetter(Argument request, Argument candidate) {
         return Math.abs(request.getWindowColumns() - candidate.getWindowColumns()) + Math.abs(request.getWindowRows() + candidate.getWindowRows());
     }
 

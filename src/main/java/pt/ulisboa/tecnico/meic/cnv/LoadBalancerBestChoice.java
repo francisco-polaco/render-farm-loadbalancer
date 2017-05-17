@@ -19,30 +19,11 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
     @Override
     public WebServerProxy chooseBestNode(Request request) {
-        Metric metric = null;
         Argument argument = request.getArgument();
-
-        //the metric is not in cache
-        if (metricCache.get(argument) == null) {
-            metric = repositoryService.getMetric(argument);
-
-            //but it's in the database!!
-            if (metric != null) {
-                metricCache.put(argument, metric);
-                request.setMetric(metric);
-            }
-            //get an estimate
-            else {
-                //metric = estimator.getMetricEstimate(argument);
-                request.setMetric(metric);
-            }
-        } else {
-            metric = metricCache.get(argument);
-            request.setMetric(metricCache.get(argument));
-        }
+        Metric metric = estimator.estimate(argument);
 
         //In case we don't have a estimate nor an exact value
-        if (metric.getRank() < 0)
+        if (metric == null)
             return new LoadBalancerLRUChoice(farm).chooseBestNode(request);
 
         WebServerProxy bestNode = null;

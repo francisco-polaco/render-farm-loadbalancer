@@ -145,7 +145,8 @@ public class ScalerService {
 
     // Statistic can be per example CPUUtilization
     // Function can be per example Average
-    public void retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
+    public double retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
+        double stat = 0.0;
         try {
             /* TODO total observation time in milliseconds */
             long offsetInMilliseconds = 1000 * 60 * 10;
@@ -167,13 +168,12 @@ public class ScalerService {
                         .withStatistics(function)
                         .withDimensions(instanceDimension)
                         .withEndTime(new Date());
-                GetMetricStatisticsResult getMetricStatisticsResult =
-                        cloudWatch.getMetricStatistics(request);
+                GetMetricStatisticsResult getMetricStatisticsResult = cloudWatch.getMetricStatistics(request);
                 List<Datapoint> datapoints = getMetricStatisticsResult.getDatapoints();
                 for (Datapoint dp : datapoints) {
-                    System.out.println(" CPU utilization for instance " + name +
-                            " = " + dp.getAverage());
+                    stat += dp.getAverage();
                 }
+                return stat;
             } else {
                 System.out.println("instance id = " + name);
             }
@@ -185,6 +185,7 @@ public class ScalerService {
             System.out.println("Error Code: " + ase.getErrorCode());
             System.out.println("Request ID: " + ase.getRequestId());
         }
+        return stat;
     }
 
 
@@ -197,5 +198,18 @@ public class ScalerService {
         }
         return stringBuilder.toString();
     }
+
+    public List<Instance> reuse() {
+        List<Instance> output = new ArrayList<>();
+        for (Instance instance : getAllInstances()) {
+            if (instance.getState().getName().equalsIgnoreCase("stopped") ||
+                    instance.getState().getName().equalsIgnoreCase("stopping") ||
+                    instance.getState().getName().equalsIgnoreCase("pending")) {
+                output.add(instance);
+            }
+        }
+        return output;
+    }
+
 
 }

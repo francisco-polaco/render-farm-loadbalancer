@@ -1,9 +1,9 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
 public class Metric {
-    private static final double COUNT_RATIO = 1d / 3d;
-    private static final double TAKEN_RATIO = 1d / 3d;
-    private static final double NOT_TAKEN_RATIO = 1d / 3d;
+    private static final double COUNT_RATIO = 1d;
+    private static final double TAKEN_RATIO = 1d;
+    private static final double NOT_TAKEN_RATIO = 1d;
 
     private long mCount;
     private long taken;

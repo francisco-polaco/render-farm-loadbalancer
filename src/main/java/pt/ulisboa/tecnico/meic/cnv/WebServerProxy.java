@@ -66,21 +66,31 @@ public class WebServerProxy {
         }
     }
 
-    State isAvailable() {
+    public Load isAvailable() {
+        long startTime = System.currentTimeMillis();
         String html;
         try {
             html = Jsoup.connect("http://" + address + ":" + port + "/test").get().html();
         } catch (IOException e) {
             badStateLogic();
-            return state;
+            return new Load(state);
         }
         if (html.contains("Page OK!")) {
             System.out.println(address + ":" + port + " is OK!");
             state = State.ALIVE;
+            long elapsedTime = System.currentTimeMillis() - startTime;
+            try {
+                return new Load(elapsedTime,
+                        ScalerService.getInstance().retrieveEC2Statistic(myInstance, "CPUUtilization", "Average"),
+                        state);
+            } catch (Exception e) {
+                badStateLogic();
+                return new Load(state);
+            }
         } else {
             badStateLogic();
         }
-        return state;
+        return new Load(state);
     }
 
     private void badStateLogic() {
@@ -95,7 +105,7 @@ public class WebServerProxy {
             new Timer().schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    final State proxyState = isAvailable();
+                    final State proxyState = isAvailable().getState();
                     if (proxyState == State.ZOMBIE) {
                         System.out.println(address + ":" + port + " is in terminal state!");
                         state = State.TERMINAL;
@@ -163,5 +173,9 @@ public class WebServerProxy {
         this.state = state;
     }
 
+
+    public List<Request> getActiveJobs() {
+        return activeJobs;
+    }
 
 }

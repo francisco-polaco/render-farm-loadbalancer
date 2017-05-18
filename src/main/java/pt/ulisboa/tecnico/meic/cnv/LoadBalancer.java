@@ -1,5 +1,6 @@
 package pt.ulisboa.tecnico.meic.cnv;
 
+import com.amazonaws.services.ec2.model.Instance;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -16,20 +17,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static pt.ulisboa.tecnico.meic.cnv.State.ALIVE;
 
 public class LoadBalancer {
+
     static final int DELAY_CLEAR_CACHE = 10 * 1000 * 60;
     static final int DELAY_CHECK_PROXYS = 10 * 1000;
     private static final int CACHE_THRESHOLD = 200;
-    private static int PORT = 8000;
-
+    //Queue timer
+    private static final Timer terminateInstances = new Timer();
     //List containing all available nodes
-    private static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
-
+    public static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
+    private static int PORT = 8000;
     //We keep a cache metric to avoid contacting database all the time
     private static Map<Argument, Metric> metricCache = new Hashtable<>();
-
     //One estimator for each model
     private static Map<String, Estimator> estimators = new Hashtable<>();
-
     //Amazon DynamoDB repository
     private static RepositoryService repositoryService = new RepositoryService();
 
@@ -58,6 +58,34 @@ public class LoadBalancer {
         launchTimerTasks();
         server.createContext("/r.html", new MyHandler());
         System.out.println("Load balancer is running at *:" + PORT);
+        if (!cmd.hasOption("cli")) {
+            // we may want to consider instances that are already up, to add to the farm
+            // this will eventually give us a bad load usage in first iterations,
+            // but terminating everything to bring up again its unnecessary work
+            Instance toAdd = null;
+            List<Instance> previousInstances = ScalerService.getInstance().getAllInstances();
+            for (Instance instance : previousInstances) {
+                String instanceState = instance.getState().getName();
+                if (instanceState.equalsIgnoreCase("running")) try {
+                    if (toAdd == null ||
+                            (ScalerService.getInstance().retrieveEC2Statistic(toAdd, "CPUUtilization", "Average") >
+                                    (ScalerService.getInstance().retrieveEC2Statistic(instance, "CPUUtilization", "Average"))))
+                        toAdd = instance;
+                } catch (Exception ignored) {
+                }
+            }
+
+            // our farm should always have a instance in the farm
+            // if we have found a instance we can add it to the farm without needing to create a new one
+            if (toAdd != null)
+                farm.add(new WebServerProxy(toAdd.getPublicIpAddress(), toAdd));
+            else {
+                List<Instance> newInstances = ScalerService.getInstance().createInstance(1, 1);
+                toAdd = newInstances.get(0);
+                farm.add(new WebServerProxy(toAdd.getPublicIpAddress(), toAdd));
+            }
+        }
+
         server.start();
 
         final HttpServer finalServer = server;
@@ -120,7 +148,7 @@ public class LoadBalancer {
                                         System.out.println("Node already exists");
                                         continue;
                                     }
-                                    if (wsp.isAvailable() == ALIVE) {
+                                    if (wsp.isAvailable().getState() == ALIVE) {
                                         farm.add(wsp);
                                         System.out.println("Added node to farm");
                                     } else
@@ -193,7 +221,7 @@ public class LoadBalancer {
         @Override
         public void run() {
             for (int i = 0; i < farm.size(); i++) {
-                if (farm.get(i).isAvailable() == State.DEAD) {
+                if (farm.get(i).isAvailable().getState() == State.DEAD) {
                     farm.remove(i);
                     i -= 1; // We need to check the same position since it will be removed.
                 }

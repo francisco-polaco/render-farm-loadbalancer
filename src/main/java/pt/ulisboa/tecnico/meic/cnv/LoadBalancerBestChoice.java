@@ -4,6 +4,7 @@ import com.amazonaws.services.ec2.model.Instance;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 
 public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
@@ -11,10 +12,8 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
     private final double AVG_PING_IRELAND = 120;
     // t2.micro max CPU clock GHz
     private final double T2_MICRO_CLOCK = 3.3 * 1000000000;
-    // lets two clocks per instruction
+    // lets assume two clocks per instruction
     private final double CPI = 2.0;
-    private final double STARTUP_TIME_REUSE = 30;
-    private final double STARTUP_TIME_NEW = 60;
 
     private List<WebServerProxy> farm;
     private Map<Argument, Metric> metricCache;
@@ -29,8 +28,13 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         this.repositoryService = repositoryService;
     }
 
+    // You should remember that anything that comes from here the instance needs to be resolved, i.e. you need to check
+    // if the WSP is ready to start processing the request
     @Override
-    public WebServerProxy chooseBestNode(Request request) {
+    public WebServerProxy chooseBestNode(final Request request) {
+        // We should not give up on instances that are not alive!
+        // We should not be greedy on choosing the instance, because we should not keep alot of instances up!
+
         Argument argument = request.getArgument();
         Metric metric = estimator.estimate(argument);
 
@@ -40,11 +44,13 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
         WebServerProxy bestNode = null;
         double estimatedWorkLoad = 0d;
-        for (WebServerProxy wsp : farm) {
+        double estimate = 0d;
+
+        for (final WebServerProxy wsp : farm) {
             // check the state of wsp && if its alive check its current load
             Load state = wsp.isAvailable();
-            if (state.getState() == State.ALIVE) {
-                double estimate = getEstimatedWorkLoad(wsp, state);
+            if (state.getState() == State.ALIVE || state.getState() == State.ZOMBIE) {
+                estimate = getEstimatedWorkLoad(wsp, state);
                 //we have to take in consideration that big requests that are still running
                 // but possibly finishing will count as a full request
                 //get an average estimate to get the least avg rank (the bigger the rank is, the heavier it is
@@ -55,37 +61,40 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             }
         }
 
+        // if the work I am about to do surpasses the amount I can physically do
+        if (estimatedWorkLoad + request.getRank() >= (T2_MICRO_CLOCK / CPI) * 0.85)
+            bestNode = null;
+
+        return bestNode == null ? getInstance() : bestNode;
+    }
+
+    private WebServerProxy getInstance() {
         // we should consider to launch another WebServerProxy if:
         // - no bestnode available since all instances are dead
-        // - the total amount of time to complete that request will take 1:30 minute of delay,
-        // we should check if the estimatedworkload doens't surpass the amount of time to open an new instance and calculating the result
+
+        WebServerProxy webServerProxy = null;
         List<Instance> reuse = ScalerService.getInstance().reuse();
-        double timeToBootUp = reuse.size() != 0 ? STARTUP_TIME_REUSE : STARTUP_TIME_NEW;
-
-        // time to execute in the current bestnode
-        double timeToExecute = (((request.getRank() + estimatedWorkLoad) * CPI) / T2_MICRO_CLOCK) * 1000;
-        // basic time to serve the request in a clean machine
-        double timeToCalculate = ((request.getRank() * CPI) / T2_MICRO_CLOCK) * 1000;
-
-        if (bestNode == null || (timeToExecute > timeToBootUp + timeToCalculate)) {
-            // between all my options we should consider that a pending machine is much more inexpensive than going from stopped or stopping state to running
-            Instance toUse = null;
-            if (reuse.size() != 0) {
-                for (Instance instance : reuse) {
-                    if (toUse == null || instance.getState().getName().equalsIgnoreCase("pending") ||
-                            (instance.getState().getName().equalsIgnoreCase("stopped") && toUse.getState().getName().equalsIgnoreCase("stopping")))
-                        toUse = instance;
-                }
-            } else {
-                List<Instance> instances = ScalerService.getInstance().createInstance(1, 1);
-                toUse = instances.get(0);
+        // between all my options we should consider that a pending machine is much more inexpensive than going from stopped or stopping state to running
+        Instance toUse = null;
+        if (reuse.size() != 0) {
+            for (Instance instance : reuse) {
+                if (
+                        toUse == null ||
+                                instance.getState().getName().equalsIgnoreCase("pending") ||
+                                (instance.getState().getName().equalsIgnoreCase("stopped") && toUse.getState().getName().equalsIgnoreCase("stopping"))
+                        )
+                    toUse = instance;
             }
-            // TODO: Thread to accompany the state change of instance on amazon
-            // TODO: Set a new WebServerProxy when running
+        } else {
+            List<Instance> instances = ScalerService.getInstance().createInstance(1, 1);
+            toUse = instances.get(0);
         }
 
-
-        return bestNode;
+        webServerProxy = new WebServerProxy(toUse.getPublicIpAddress() + ":" + "8000", toUse);
+        // is safe to assume that any of the instances that will from here will be payed for 1 hour
+        // so we should only consider to terminate instances right before the 1 hour mark
+        new Timer().schedule(new TerminateInstanceListener(webServerProxy), 50 * 60 * 1000);
+        return webServerProxy;
     }
 
     private double getEstimatedWorkLoad(WebServerProxy wsp, Load state) {
@@ -109,4 +118,6 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
         return currentLoadAvg - performedWork;
     }
+
+
 }

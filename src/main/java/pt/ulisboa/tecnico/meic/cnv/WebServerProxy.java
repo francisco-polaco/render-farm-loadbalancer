@@ -13,11 +13,13 @@ import java.net.URLConnection;
 import java.util.*;
 
 public class WebServerProxy {
+
     private String address;
     private int port;
     private long lastTimeUsed;
     private List<Request> activeJobs;
     private State state = State.ALIVE;
+
     private Instance myInstance;
 
     public WebServerProxy(String remoteAddress, Instance instance) throws ArrayIndexOutOfBoundsException, NumberFormatException {
@@ -173,9 +175,17 @@ public class WebServerProxy {
         this.state = state;
     }
 
-
     public List<Request> getActiveJobs() {
         return activeJobs;
+    }
+
+
+    public Instance getMyInstance() {
+        return myInstance;
+    }
+
+    public void setMyInstance(Instance myInstance) {
+        this.myInstance = myInstance;
     }
 
 }

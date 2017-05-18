@@ -14,7 +14,9 @@ import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import org.jsoup.Jsoup;
 
+import java.io.IOException;
 import java.util.*;
 
 public class ScalerService {
@@ -209,6 +211,16 @@ public class ScalerService {
             }
         }
         return output;
+    }
+
+    public boolean checkIfReady(String remoteUrl) {
+        String html;
+        try {
+            html = Jsoup.connect(remoteUrl + "/test").get().html();
+        } catch (IOException e) {
+            return false;
+        }
+        return html.contains("Page OK!");
     }
 
 

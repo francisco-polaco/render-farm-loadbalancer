@@ -63,9 +63,10 @@ public class LoadBalancerThread extends Thread {
 
         Estimator estimator = estimators.get(request.getArgument().getModel());
 
-        LoadBalancerChoiceStrategy strategy =
-                new LoadBalancerBestChoice(farm, metricCache, estimator, repositoryService);
+        LoadBalancerChoiceStrategy strategy = new LoadBalancerBestChoice(farm, metricCache, estimator, repositoryService);
         WebServerProxy node = strategy.chooseBestNode(request);
+
+        // TODO : Carefully think about the node that came, watch for state....
 
         System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL() + " -> " + request);
         try {
@@ -74,7 +75,7 @@ public class LoadBalancerThread extends Thread {
                     (System.currentTimeMillis() - request.getTimestamp()) + " ms");
         } catch (IOException e) {
             System.out.println("[Aborted] " + request.getId() + " aborted due to " + e.getClass().getSimpleName());
-            if (node.isAvailable() == DEAD) {
+            if (node.isAvailable().getState() == DEAD) {
                 farm.remove(node);
             }
         } finally {

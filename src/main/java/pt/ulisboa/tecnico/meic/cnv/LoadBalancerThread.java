@@ -65,7 +65,7 @@ public class LoadBalancerThread extends Thread {
 
         Estimator estimator = estimators.get(request.getArgument().getModel());
 
-        LoadBalancerChoiceStrategy strategy = new LoadBalancerBestChoice(farm, metricCache, estimator, repositoryService);
+        LoadBalancerChoiceStrategy strategy = new LoadBalancerBestChoice(farm, estimator);
         WebServerProxy node = strategy.chooseBestNode(request);
         node.getActiveJobs().add(request);
 

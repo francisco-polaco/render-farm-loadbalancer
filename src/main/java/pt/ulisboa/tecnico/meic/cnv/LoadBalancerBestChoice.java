@@ -2,23 +2,21 @@ package pt.ulisboa.tecnico.meic.cnv;
 
 import com.amazonaws.services.ec2.model.Instance;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
-    // t2.micro max CPU clock GHz
-    private final double THRESHOLD = 0d;
+    // measured by sampling
+    private final double THRESHOLD = 4441439;
     private List<WebServerProxy> farm;
-    private Map<Argument, Metric> metricCache;
     private Estimator estimator;
-    private RepositoryService repositoryService;
 
-    public LoadBalancerBestChoice(List<WebServerProxy> farm, Map<Argument, Metric> metricCache,
-                                  Estimator estimator, RepositoryService repositoryService) {
+    public LoadBalancerBestChoice(List<WebServerProxy> farm, Estimator estimator) {
         this.farm = farm;
-        this.metricCache = metricCache;
         this.estimator = estimator;
-        this.repositoryService = repositoryService;
     }
 
     // You should remember that anything that comes from here the instance needs to be resolved, i.e. you need to check
@@ -57,7 +55,10 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         }
 
         // if the work I am about to do surpasses the amount I can physically do
-        if (workLoad + request.getRank() >= (THRESHOLD) * 0.90)
+        // possible load to second that will be added to the current node
+        // we multiply for 90% since, just because those thresholds were taken at 100% CPU
+        double possibleLoad = (workLoad + request.getRank()) / 60;
+        if (bestNode != null && possibleLoad >= (THRESHOLD) * 0.90)
             bestNode = null;
 
         return bestNode == null ? getInstance() : bestNode;
@@ -127,7 +128,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
 
     // TODO: better queries on dynamodb
-    // TODO: metrics
+    // TODO: metrics downsize
     // TODO: Politicas para dar downsize à farm
 
 }

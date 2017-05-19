@@ -67,6 +67,8 @@ public class RepositoryService {
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel()));
 
         scanFilter.put("file", condition); // we want to filter by file
+
+
         ScanRequest scanRequest = new ScanRequest(TABLE_NAME).withScanFilter(scanFilter);
         ScanResult scanResult = repository.scan(scanRequest);
 
@@ -87,5 +89,6 @@ public class RepositoryService {
         }
         return output;
     }
+
 
 }

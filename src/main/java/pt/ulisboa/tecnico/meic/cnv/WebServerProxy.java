@@ -23,19 +23,27 @@ public class WebServerProxy {
     private ServerState serverState = ServerState.READY;
     private Instance myInstance;
 
+    /*
     public WebServerProxy(String remoteAddress, Instance instance) throws ArrayIndexOutOfBoundsException, NumberFormatException {
         String[] args = remoteAddress.split(":");
         this.address = args[0];
         this.port = Integer.valueOf(args[1]);
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
         myInstance = instance;
+    }*/
+
+    public WebServerProxy(Instance myInstance){
+        port = 8000;
+        this.myInstance = myInstance;
+        activeJobs = Collections.synchronizedList(new ArrayList<Request>());
     }
 
+    /*
     public WebServerProxy(String address, int port) {
         this.address = address;
         this.port = port;
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
-    }
+    }*/
 
     public long getLastTimeUsed() {
         return this.lastTimeUsed;
@@ -167,7 +175,8 @@ public class WebServerProxy {
 
     // TODO: BERNARDO PARA USAR A INSTANCIA DE EC2
     public String getRemoteURL() {
-        return "http://" + address + ":" + port;
+        return "http://" + ((myInstance.getPublicIpAddress() != null)?
+                myInstance.getPublicIpAddress():myInstance.getPrivateIpAddress()) + ":" + port;
     }
 
     public State getState() {

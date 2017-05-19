@@ -3,6 +3,7 @@ package pt.ulisboa.tecnico.meic.cnv;
 import java.util.Map;
 
 public class Argument {
+
     private String model;
     private int sceneColumns;
     private int sceneRows;

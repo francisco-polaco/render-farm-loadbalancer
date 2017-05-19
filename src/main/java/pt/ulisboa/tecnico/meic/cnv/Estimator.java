@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Estimator {
 
-    private final double THRESHOLD_PERCENTAGE = 0.2;
+    private final double THRESHOLD_PERCENTAGE = 0.3;
     private final double PROBABILITY_LRU = 0.25;
     private Map<Argument, Metric> metricCache;
     private RepositoryService repositoryService;
@@ -41,12 +41,12 @@ public class Estimator {
         return candidate;
     }
 
-    private synchronized Metric chooseBestCandidate(Argument request, Map<Argument, Metric> candidates) {
+    private Metric chooseBestCandidate(Argument request, Map<Argument, Metric> candidates) {
         Metric candidate = null;
         long min = -1;
         for (Argument argument : candidates.keySet()) {
             long res = isBetter(request, argument);
-            if (min == -1 || min >= res) {
+            if (min == -1 || min >= res && isSimilar(request, argument)) {
                 min = res;
                 candidate = candidates.get(argument);
             }
@@ -55,12 +55,12 @@ public class Estimator {
     }
 
     // a closer interval is a better estimate
-    private synchronized long isBetter(Argument request, Argument candidate) {
+    private long isBetter(Argument request, Argument candidate) {
         return Math.abs(request.getWindowColumns() - candidate.getWindowColumns()) + Math.abs(request.getWindowRows() + candidate.getWindowRows());
     }
 
 
-    private synchronized boolean isSimilar(Argument request, Argument inMem) {
+    private boolean isSimilar(Argument request, Argument inMem) {
         long reqComplexity = request.getWindowRows() * request.getWindowColumns();
         double delta = Math.abs(reqComplexity - (inMem.getWindowRows() * inMem.getWindowColumns()));
         return delta <= (THRESHOLD_PERCENTAGE * reqComplexity);

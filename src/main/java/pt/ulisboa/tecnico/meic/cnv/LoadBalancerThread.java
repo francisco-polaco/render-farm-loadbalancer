@@ -71,6 +71,7 @@ public class LoadBalancerThread extends Thread {
         // Carefully think about the node that came, watch for the state....
         long milis = System.currentTimeMillis();
         while (!ScalerService.getInstance().checkIfReady(node.getRemoteURL())) {
+            System.out.println("Instance with ip " + node.getMyInstance().getPrivateIpAddress() + " is not ready! Waiting....");
             long l = ThreadLocalRandom.current().nextLong(1, 10);
             try {
                 Thread.sleep(l * 1000);

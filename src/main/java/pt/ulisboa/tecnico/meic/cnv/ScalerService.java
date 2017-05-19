@@ -229,12 +229,10 @@ public class ScalerService {
     }
 
     public boolean checkIfReady(String remoteUrl) {
-        System.out.println(remoteUrl);
         String html;
         try {
             html = Jsoup.connect(remoteUrl + "/test").get().html();
         } catch (IOException e) {
-            e.printStackTrace();
             return false;
         }
         System.out.println(html);

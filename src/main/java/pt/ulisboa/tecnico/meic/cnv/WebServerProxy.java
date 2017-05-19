@@ -23,14 +23,14 @@ public class WebServerProxy {
     private ServerState serverState = ServerState.READY;
     private Instance myInstance;
 
-    /*
+
     public WebServerProxy(String remoteAddress, Instance instance) throws ArrayIndexOutOfBoundsException, NumberFormatException {
         String[] args = remoteAddress.split(":");
         this.address = args[0];
         this.port = Integer.valueOf(args[1]);
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
         myInstance = instance;
-    }*/
+    }
 
     public WebServerProxy(Instance myInstance){
         port = 8000;
@@ -38,12 +38,12 @@ public class WebServerProxy {
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
     }
 
-    /*
+
     public WebServerProxy(String address, int port) {
         this.address = address;
         this.port = port;
         activeJobs = Collections.synchronizedList(new ArrayList<Request>());
-    }*/
+    }
 
     public long getLastTimeUsed() {
         return this.lastTimeUsed;

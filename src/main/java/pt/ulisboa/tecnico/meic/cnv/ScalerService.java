@@ -235,7 +235,6 @@ public class ScalerService {
         } catch (IOException e) {
             return false;
         }
-        System.out.println(html);
         return html.contains("Page OK!");
     }
 

@@ -79,10 +79,12 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
                                 (instance.getState().getName().equalsIgnoreCase("stopped") && toUse.getState().getName().equalsIgnoreCase("stopping"))
                         )
                     toUse = instance;
+                System.out.println("Reusing instance: " + toUse.getInstanceId() + " with ip: " + toUse.getPrivateIpAddress());
             }
         } else {
             List<Instance> instances = ScalerService.getInstance().createInstance(1, 1);
             toUse = instances.get(0);
+            System.out.println("Creating instance: " + toUse.getInstanceId() + " with ip: " + toUse.getPrivateIpAddress());
         }
 
         final WebServerProxy webServerProxy = new WebServerProxy(toUse.getPrivateIpAddress() + ":" + "8000", toUse);

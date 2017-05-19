@@ -75,7 +75,7 @@ public class RepositoryService {
         List<Map<String, AttributeValue>> queryResult = scanResult.getItems();
         HashMap<Argument, Metric> output = new HashMap<>();
         for (Map<String, AttributeValue> element : queryResult) {
-            output.put(new Argument(element.get("file").toString(),
+            output.put(new Argument(element.get("model").toString(),
                             Integer.valueOf(element.get("sc").getS()),
                             Integer.valueOf(element.get("sr").getS()),
                             Integer.valueOf(element.get("wc").getS()),

@@ -65,14 +65,30 @@ public class LoadBalancerThread extends Thread {
         WebServerProxy node = strategy.chooseBestNode(request);
         node.getActiveJobs().add(request);
 
+
+        if (!farm.contains(node)) {
+            node.setServerState(ServerState.INITIALIZING);
+            farm.add(node);
+        }
+
         // Carefully think about the node that came, watch for the state....
+        long milis = System.currentTimeMillis();
         while (!ScalerService.getInstance().checkIfReady(node.getRemoteURL())) {
             long l = ThreadLocalRandom.current().nextLong(1, 10);
             try {
                 Thread.sleep(l * 1000);
             } catch (InterruptedException ignored) {
             }
+            // if in 2 minutes the node doesn't come up just shift to another one
+            if (System.currentTimeMillis() - milis == 120000) {
+                LoadBalancer.failedRequests.add(new Packet(httpExchange, request));
+                farm.remove(node);
+                break;
+            }
         }
+
+        // even if the node is ready to serve, initializing nodes need to be set to ready
+        node.setServerState(ServerState.READY);
 
         System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL() + " -> " + request);
         try {

@@ -96,15 +96,20 @@ public class LoadBalancer {
 
             // our farm should always have a instance in the farm
             // if we have found a instance we can add it to the farm without needing to create a new one
+            boolean reuse = true;
             if (toAdd == null) {
                 List<Instance> newInstances = ScalerService.getInstance().createInstance(1, 1);
                 toAdd = newInstances.get(0);
-                // TODO: BERNARDO
-                System.out.println("Creating instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPublicIpAddress());
+                reuse = false;
+                System.out.println("Creating instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPrivateIpAddress());
             } else
-                System.out.println("Reusing instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPublicIpAddress());
+                System.out.println("Reusing instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPrivateIpAddress());
 
-            farm.add(new WebServerProxy(toAdd.getPublicIpAddress() + ":" + "8080", toAdd));
+            WebServerProxy webServerProxy = new WebServerProxy(toAdd.getPrivateIpAddress() + ":" + "8080", toAdd);
+            if (!reuse)
+                webServerProxy.setServerState(ServerState.INITIALIZING);
+
+            farm.add(webServerProxy);
         }
 
         server.start();
@@ -256,7 +261,7 @@ public class LoadBalancer {
         @Override
         public void run() {
             for (int i = 0; i < farm.size(); i++) {
-                if (farm.get(i).isAvailable().getState() == State.DEAD) {
+                if (farm.get(i).getServerState() != ServerState.INITIALIZING && farm.get(i).isAvailable().getState() == State.DEAD) {
                     farm.remove(i);
                     i -= 1; // We need to check the same position since it will be removed.
                 }

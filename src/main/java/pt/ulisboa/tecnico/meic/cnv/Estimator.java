@@ -21,14 +21,14 @@ public class Estimator {
 
         // try to find an equal argument in cache
         if (metricCache.containsKey(argument)) {
-            candidate = metricCache.get(argument);
+            return metricCache.get(argument);
         }
         // try to find something close enough in the metricCache
         else {
             // something similar should have an equal model
             for (Argument arg : metricCache.keySet()) {
                 if (arg.getModel().equals(argument.getModel()) && isSimilar(argument, arg))
-                    candidate = metricCache.get(arg);
+                    return metricCache.get(arg);
             }
 
             // have a probability of using LRU, to add randomness
@@ -38,6 +38,7 @@ public class Estimator {
                     candidate = chooseBestCandidate(argument, repositoryService.getMetricsEstimator(argument));
             }
         }
+
         return candidate;
     }
 

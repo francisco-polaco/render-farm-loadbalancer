@@ -66,7 +66,7 @@ public class RepositoryService {
                 .withComparisonOperator(ComparisonOperator.EQ.toString())
                 .withAttributeValueList(new AttributeValue().withS(argument.getModel()));
 
-        scanFilter.put("file", condition); // we want to filter by file
+        scanFilter.put("model", condition); // we want to filter by file
 
 
         ScanRequest scanRequest = new ScanRequest(TABLE_NAME).withScanFilter(scanFilter);

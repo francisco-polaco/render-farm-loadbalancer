@@ -18,13 +18,12 @@ public class LoadBalancerThread extends Thread {
             "test04.txt", "test05.txt", "test-texmap.txt", "wood.txt");
     private HttpExchange httpExchange;
     private List<WebServerProxy> farm;
-    private Map<String, Estimator> estimators;
-    private RepositoryService repositoryService;
+    private Estimator estimator;
 
-    LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Map<String, Estimator> estimators) {
+    LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Estimator estimators) {
         this.httpExchange = httpExchange;
         this.farm = farm;
-        this.estimators = estimators;
+        this.estimator = estimators;
     }
 
     private static Map<String, String> parseRequest(String query) {
@@ -36,7 +35,7 @@ public class LoadBalancerThread extends Thread {
                 paramsMap.put(parameters[0], parameters[1]);
             }
         }
-        if (!VALID_MODELS.contains(paramsMap.get("m"))) throw new RuntimeException();
+        if (!VALID_MODELS.contains(paramsMap.get("f"))) throw new RuntimeException();
         return paramsMap;
     }
 
@@ -58,8 +57,6 @@ public class LoadBalancerThread extends Thread {
             }
             return;
         }
-
-        Estimator estimator = estimators.get(request.getArgument().getModel());
 
         LoadBalancerChoiceStrategy strategy = new LoadBalancerBestChoice(farm, estimator);
         WebServerProxy node = strategy.chooseBestNode(request);
@@ -93,7 +90,7 @@ public class LoadBalancerThread extends Thread {
         System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL() + " -> " + request);
         try {
             node.dispatch(httpExchange, request);
-            System.out.println("[Completed] " + request.getId() + " finished in " +
+            System.out.println("[Completed] " + httpExchange.getRequestURI().getQuery() + " finished in " +
                     (System.currentTimeMillis() - request.getTimestamp()) + " ms");
         } catch (IOException e) {
             System.out.println("[Aborted] " + request.getId() + " aborted due to " + e.getClass().getSimpleName());

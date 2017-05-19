@@ -46,11 +46,11 @@ public class WebServerProxy {
         OutputStream os = null;
         try {
             lastTimeUsed = System.currentTimeMillis();
+
             if (!activeJobs.contains(request))
                 activeJobs.add(request);
 
-            URL remoteResourse = new URL(getRemoteURL() + "/r.html?" +
-                    t.getRequestURI().getQuery() + "&requestid=" + request.getId());
+            URL remoteResourse = new URL(getRemoteURL() + "/r.html?" + t.getRequestURI().getQuery());
 
             URLConnection uc = remoteResourse.openConnection();
             is = uc.getInputStream();

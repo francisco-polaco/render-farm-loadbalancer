@@ -36,10 +36,10 @@ public class LoadBalancer {
     private static int PORT = 8000;
     //We keep a cache metric to avoid contacting database all the time
     private static Map<Argument, Metric> metricCache = new Hashtable<>();
-    //One estimator for each model
-    private static Map<String, Estimator> estimators = new Hashtable<>();
     //Amazon DynamoDB repository
     private static RepositoryService repositoryService = new RepositoryService();
+    //One estimator for each model
+    private static Estimator estimator = new Estimator(metricCache, repositoryService);
 
     public static void main(String[] args) throws ParseException {
         Options options = new Options()
@@ -105,7 +105,7 @@ public class LoadBalancer {
             } else
                 System.out.println("Reusing instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPrivateIpAddress());
 
-            WebServerProxy webServerProxy = new WebServerProxy(toAdd.getPrivateIpAddress() + ":" + "8080", toAdd);
+            WebServerProxy webServerProxy = new WebServerProxy(toAdd.getPrivateIpAddress() + ":" + "8000", toAdd);
             if (!reuse)
                 webServerProxy.setServerState(ServerState.INITIALIZING);
 
@@ -141,7 +141,7 @@ public class LoadBalancer {
 
     private static void launchTimerTasks() {
         new ClearCacheTableTask();
-        new CheckWebServerProxysTask();
+        //new CheckWebServerProxysTask();
         new RetryRequests();
     }
 
@@ -149,7 +149,7 @@ public class LoadBalancer {
         @Override
         public void handle(HttpExchange t) throws IOException {
             System.out.println("Received request: " + t.getRequestURI().getQuery());
-            (new LoadBalancerThread(t, farm, estimators)).start();
+            (new LoadBalancerThread(t, farm, estimator)).start();
         }
     }
 
@@ -283,7 +283,7 @@ public class LoadBalancer {
             else {
                 Packet packet = failedRequests.poll();
                 System.out.println("Retrying request with url: " + packet.getHttpExchange().getRequestMethod());
-                (new LoadBalancerThread(packet.getHttpExchange(), farm, estimators)).start();
+                (new LoadBalancerThread(packet.getHttpExchange(), farm, estimator)).start();
             }
         }
     }

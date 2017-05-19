@@ -8,6 +8,7 @@ import org.jsoup.Jsoup;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.*;
@@ -82,10 +83,9 @@ public class WebServerProxy {
             System.out.println(address + ":" + port + " is OK!");
             state = State.ALIVE;
             long elapsedTime = System.currentTimeMillis() - startTime;
+            BigInteger performed = new BigInteger(html.substring(html.indexOf("=")));
             try {
-                return new Load(elapsedTime,
-                        ScalerService.getInstance().retrieveEC2Statistic(myInstance, "CPUUtilization", "Average"),
-                        state);
+                return new Load(elapsedTime, ScalerService.getInstance().retrieveEC2Statistic(myInstance, "CPUUtilization", "Average"), state, performed);
             } catch (Exception e) {
                 badStateLogic();
                 return new Load(state);

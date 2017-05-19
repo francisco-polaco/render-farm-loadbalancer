@@ -6,13 +6,8 @@ import java.util.*;
 
 public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
-    // 70 milliseconds - based on pings done through google to various ireland locations
-    private final double AVG_PING_IRELAND = 120;
     // t2.micro max CPU clock GHz
-    private final double T2_MICRO_CLOCK = 3.3 * 1000000000;
-    // lets assume two clocks per instruction
-    private final double CPI = 2.0;
-
+    private final double THRESHOLD = 0d;
     private List<WebServerProxy> farm;
     private Map<Argument, Metric> metricCache;
     private Estimator estimator;
@@ -41,8 +36,8 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             return new LoadBalancerLRUChoice(farm).chooseBestNode(request);
 
         WebServerProxy bestNode = null;
-        double estimatedWorkLoad = 0d;
-        double estimate = 0d;
+        double workLoad = 0d;
+        double estimate;
 
         for (final WebServerProxy wsp : farm) {
             if (wsp.getServerState() == ServerState.TERMINATING)
@@ -52,17 +47,17 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             if (state.getState() == State.ALIVE || state.getState() == State.ZOMBIE) {
                 estimate = getEstimatedWorkLoad(wsp, state);
                 //we have to take in consideration that big requests that are still running
-                // but possibly finishing will count as a full request
+                //but possibly finishing will count as a full request
                 //get an average estimate to get the least avg rank (the bigger the rank is, the heavier it is
-                if (bestNode == null || estimatedWorkLoad > estimate) {
+                if (bestNode == null || workLoad > estimate) {
                     bestNode = wsp;
-                    estimatedWorkLoad = getEstimatedWorkLoad(wsp, state);
+                    workLoad = estimate;
                 }
             }
         }
 
         // if the work I am about to do surpasses the amount I can physically do
-        if (estimatedWorkLoad + request.getRank() >= (T2_MICRO_CLOCK / CPI) * 0.85)
+        if (workLoad + request.getRank() >= (THRESHOLD) * 0.90)
             bestNode = null;
 
         return bestNode == null ? getInstance() : bestNode;
@@ -113,8 +108,12 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
     }
 
     private double getEstimatedWorkLoad(WebServerProxy wsp, Load state) {
-        // Instant CPU usage and RTT of ping should have an effect on the present state of the wsp
-        double currentLoadAvg = wsp.getAvgRank() * (1 + (state.getCpuUsage() / 100 + state.getRTT() / AVG_PING_IRELAND));
+        double work = 0d;
+        for (Request req : wsp.getActiveJobs())
+            work += req.getRank();
+
+        // Calculating something on a CPU that is already in a bottleneck becomes expensive
+        work = work * (1 + (state.getCpuUsage() / 100));
         // we need to discount the amount of work that the wsp has already performed
 
         // to know an estimate of how much work was performed we can consider the sum of the metrics instrumented the number of instructions to execute
@@ -122,17 +121,13 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         // and also we are not considering the access to disk and ram
         // its also true that more "instructions" were executed
         // we agreed on that trade-off when we grabbed only the most important metrics - precision/performance
-        double performedWork = 0d;
-        for (Request req : wsp.getActiveJobs()) {
-            // assuming it comes in seconds
-            double totalCPUTime = (req.getRank() * CPI) / T2_MICRO_CLOCK;
-            double delta = totalCPUTime * 1000 - (System.currentTimeMillis() - req.getTimestamp());
-            double percentageCompleted = delta / totalCPUTime;
-            performedWork += req.getRank() * percentageCompleted;
-        }
 
-        return currentLoadAvg - performedWork;
+        return work - state.getPerformed().doubleValue();
     }
 
+
+    // TODO: better queries on dynamodb
+    // TODO: metrics
+    // TODO: Politicas para dar downsize à farm
 
 }

@@ -13,6 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import static pt.ulisboa.tecnico.meic.cnv.State.DEAD;
 
 public class LoadBalancerThread extends Thread {
+
     private static final List<String> VALID_MODELS = Arrays.asList("test01.txt", "test02.txt", "test03.txt",
             "test04.txt", "test05.txt", "test-texmap.txt", "wood.txt");
     private HttpExchange httpExchange;
@@ -22,7 +23,7 @@ public class LoadBalancerThread extends Thread {
     private RepositoryService repositoryService;
 
     LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Map<Argument, Metric> metricCache,
-                       Map<String, Estimator> estimators, RepositoryService repositoryService) {
+                       Map<String, Estimator> estimators, RepositoryService repositoryServices) {
         this.httpExchange = httpExchange;
         this.farm = farm;
         this.metricCache = metricCache;
@@ -68,7 +69,7 @@ public class LoadBalancerThread extends Thread {
         WebServerProxy node = strategy.chooseBestNode(request);
         node.getActiveJobs().add(request);
 
-        // TODO : Carefully think about the node that came, watch for state....
+        // Carefully think about the node that came, watch for the state....
         while (!ScalerService.getInstance().checkIfReady(node.getRemoteURL())) {
             long l = ThreadLocalRandom.current().nextLong(1, 10);
             try {
@@ -87,6 +88,7 @@ public class LoadBalancerThread extends Thread {
             if (node.isAvailable().getState() == DEAD) {
                 farm.remove(node);
             }
+            LoadBalancer.failedRequests.add(new Packet(httpExchange, request));
         } finally {
             httpExchange.close();
         }

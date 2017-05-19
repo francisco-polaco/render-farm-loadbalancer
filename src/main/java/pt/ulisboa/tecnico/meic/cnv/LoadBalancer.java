@@ -15,17 +15,20 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static pt.ulisboa.tecnico.meic.cnv.State.ALIVE;
 
 public class LoadBalancer {
 
-    static final int DELAY_CLEAR_CACHE = 10 * 1000 * 60;
-    static final int DELAY_CHECK_PROXYS = 10 * 1000;
+    private static final int DELAY_RETRY = 10 * 1000 * 30;
+    private static final int DELAY_CLEAR_CACHE = 10 * 1000 * 60;
+    private static final int DELAY_CHECK_PROXYS = 10 * 1000;
     private static final int CACHE_THRESHOLD = 200;
+
     //Queue timer
-    private static final Timer terminateInstances = new Timer();
+    public static ConcurrentLinkedQueue<Packet> failedRequests = new ConcurrentLinkedQueue<Packet>();
     //Load Balancer ip address
     public static String ip = findMyIp();
     //List containing all available nodes
@@ -135,6 +138,7 @@ public class LoadBalancer {
     private static void launchTimerTasks() {
         new ClearCacheTableTask();
         new CheckWebServerProxysTask();
+        new RetryRequests();
     }
 
     private static class MyHandler implements HttpHandler {
@@ -258,6 +262,24 @@ public class LoadBalancer {
                 }
             }
             new CheckWebServerProxysTask();
+        }
+    }
+
+    private static class RetryRequests extends TimerTask {
+
+        RetryRequests() {
+            new Timer().schedule(this, DELAY_RETRY, DELAY_RETRY);
+        }
+
+        @Override
+        public void run() {
+            if (failedRequests.isEmpty())
+                return;
+            else {
+                Packet packet = failedRequests.poll();
+                System.out.println("Retrying request with url: " + packet.getHttpExchange().getRequestMethod());
+                (new LoadBalancerThread(packet.getHttpExchange(), farm, metricCache, estimators, repositoryService)).start();
+            }
         }
     }
 }

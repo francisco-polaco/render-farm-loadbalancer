@@ -99,13 +99,12 @@ public class LoadBalancer {
             if (toAdd == null) {
                 List<Instance> newInstances = ScalerService.getInstance().createInstance(1, 1);
                 toAdd = newInstances.get(0);
-            }
+                // TODO: BERNARDO
+                System.out.println("Creating instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPublicIpAddress());
+            } else
+                System.out.println("Reusing instance: " + toAdd.getInstanceId() + " with ip: " + toAdd.getPublicIpAddress());
+
             farm.add(new WebServerProxy(toAdd.getPublicIpAddress() + ":" + "8080", toAdd));
-            try {
-                System.out.println(ScalerService.getInstance().retrieveEC2Statistic(toAdd, "CPUUtilization", "Average"));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
 
         server.start();
@@ -144,7 +143,8 @@ public class LoadBalancer {
     private static class MyHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
-            (new LoadBalancerThread(t, farm, metricCache, estimators, repositoryService)).start();
+            System.out.println("Received request: " + t.getRequestURI().getQuery());
+            (new LoadBalancerThread(t, farm, estimators)).start();
         }
     }
 
@@ -278,8 +278,9 @@ public class LoadBalancer {
             else {
                 Packet packet = failedRequests.poll();
                 System.out.println("Retrying request with url: " + packet.getHttpExchange().getRequestMethod());
-                (new LoadBalancerThread(packet.getHttpExchange(), farm, metricCache, estimators, repositoryService)).start();
+                (new LoadBalancerThread(packet.getHttpExchange(), farm, estimators)).start();
             }
         }
     }
+
 }

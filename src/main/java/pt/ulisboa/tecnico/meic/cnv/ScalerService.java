@@ -25,6 +25,7 @@ public class ScalerService {
 
     // this examples are purely theoretical, we need to to consensus on this
     private static final String IMAGE_ID = "ami-127b7174";
+    //private static final String IMAGE_ID = "ami-d18b83b7";
     private static final String INSTANCE_TYPE = "t2.micro";
     private static final String SECURITY_GROUP = "CNV-ssh+8000+80";
     private static final String KEY_NAME = "cnv-proj";

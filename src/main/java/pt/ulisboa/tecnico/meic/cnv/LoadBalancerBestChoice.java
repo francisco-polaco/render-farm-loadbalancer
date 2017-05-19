@@ -30,8 +30,10 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         Metric metric = estimator.estimate(argument);
 
         //In case we don't have a estimate nor an exact value
-        if (metric == null)
+        if (metric == null) {
+            System.out.println("Using LRU!");
             return new LoadBalancerLRUChoice(farm).chooseBestNode(request);
+        }
 
         WebServerProxy bestNode = null;
         double workLoad = 0d;
@@ -57,7 +59,10 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         // if the work I am about to do surpasses the amount I can physically do
         // possible load to second that will be added to the current node
         // we multiply for 90% since, just because those thresholds were taken at 100% CPU
-        double possibleLoad = (workLoad + request.getRank()) / 60;
+        double possibleLoad = (workLoad + metric.getRank()) / 60;
+        System.out.println(metric.getRank());
+        System.out.println(workLoad);
+        System.out.println("possible load = " + possibleLoad);
         if (bestNode != null && possibleLoad >= (THRESHOLD) * 0.90)
             bestNode = null;
 

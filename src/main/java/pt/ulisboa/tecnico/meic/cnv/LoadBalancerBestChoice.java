@@ -2,9 +2,7 @@ package pt.ulisboa.tecnico.meic.cnv;
 
 import com.amazonaws.services.ec2.model.Instance;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
+import java.util.*;
 
 public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
 
@@ -31,7 +29,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
     // You should remember that anything that comes from here the instance needs to be resolved, i.e. you need to check
     // if the WSP is ready to start processing the request
     @Override
-    public WebServerProxy chooseBestNode(final Request request) {
+    public synchronized WebServerProxy chooseBestNode(final Request request) {
         // We should not give up on instances that are not alive!
         // We should not be greedy on choosing the instance, because we should not keep alot of instances up!
 
@@ -47,6 +45,8 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         double estimate = 0d;
 
         for (final WebServerProxy wsp : farm) {
+            if (wsp.getServerState() == ServerState.TERMINATING)
+                continue;
             // check the state of wsp && if its alive check its current load
             Load state = wsp.isAvailable();
             if (state.getState() == State.ALIVE || state.getState() == State.ZOMBIE) {
@@ -72,7 +72,6 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         // we should consider to launch another WebServerProxy if:
         // - no bestnode available since all instances are dead
 
-        WebServerProxy webServerProxy = null;
         List<Instance> reuse = ScalerService.getInstance().reuse();
         // between all my options we should consider that a pending machine is much more inexpensive than going from stopped or stopping state to running
         Instance toUse = null;
@@ -90,10 +89,26 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             toUse = instances.get(0);
         }
 
-        webServerProxy = new WebServerProxy(toUse.getPublicIpAddress() + ":" + "8000", toUse);
+        final WebServerProxy webServerProxy = new WebServerProxy(toUse.getPublicIpAddress() + ":" + "8000", toUse);
         // is safe to assume that any of the instances that will from here will be payed for 1 hour
         // so we should only consider to terminate instances right before the 1 hour mark
-        new Timer().schedule(new TerminateInstanceListener(webServerProxy), 50 * 60 * 1000);
+        new Timer().schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (webServerProxy.getActiveJobs().size() == 0 && farm.size() >= 2) {
+                    webServerProxy.setServerState(ServerState.TERMINATING);
+                    new Timer().schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            List<String> ids = new ArrayList<>();
+                            ids.add(webServerProxy.getMyInstance().getInstanceId());
+                            ScalerService.getInstance().stopInstances(ids);
+                        }
+                    }, 9 * 60 * 1000);
+                }
+            }
+        }, 50 * 60 * 1000);
+
         return webServerProxy;
     }
 

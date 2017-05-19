@@ -81,9 +81,9 @@ public class ScalerService {
 
 
     public void terminateInstances(List<String> instanceIds) {
-        System.out.println("Terminating instances...");
+        System.out.println("ServerState instances...");
         for (String id : instanceIds)
-            System.out.println("Terminating: " + id);
+            System.out.println("ServerState: " + id);
 
         TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest();
 
@@ -117,6 +117,13 @@ public class ScalerService {
         for (Reservation reservation : reservations)
             instances.addAll(reservation.getInstances());
 
+        Instance lb = null;
+        for (Instance instance : instances) {
+            if (isTerminated(instance) || isLoadBalancer(instance.getPublicIpAddress()))
+                lb = instance;
+        }
+        instances.remove(lb);
+
         System.out.println("Total instances = " + instances.size());
 
         return new ArrayList<>(instances);
@@ -133,6 +140,9 @@ public class ScalerService {
 
         Set<Instance> toRemove = new HashSet<Instance>();
         for (Instance instance : instances) {
+            if (isTerminated(instance) || isLoadBalancer(instance.getPublicIpAddress()))
+                continue;
+
             if (!instance.getState().getName().equalsIgnoreCase(state))
                 toRemove.add(instance);
         }
@@ -150,7 +160,6 @@ public class ScalerService {
     public double retrieveEC2Statistic(Instance instance, String statistic, String function) throws Exception {
         double stat = 0.0;
         try {
-            /* TODO total observation time in milliseconds */
             long offsetInMilliseconds = 1000 * 60 * 10;
             Dimension instanceDimension = new Dimension();
             instanceDimension.setName("InstanceId");
@@ -160,7 +169,7 @@ public class ScalerService {
             String name = instance.getInstanceId();
             String state = instance.getState().getName();
             if (state.equals("running")) {
-                System.out.println("running instance id = " + name);
+                System.out.println("Retrieving ec2 statistic to running instance id = " + name);
                 instanceDimension.setValue(name);
                 GetMetricStatisticsRequest request = new GetMetricStatisticsRequest()
                         .withStartTime(new Date(new Date().getTime() - offsetInMilliseconds))
@@ -170,6 +179,7 @@ public class ScalerService {
                         .withStatistics(function)
                         .withDimensions(instanceDimension)
                         .withEndTime(new Date());
+
                 GetMetricStatisticsResult getMetricStatisticsResult = cloudWatch.getMetricStatistics(request);
                 List<Datapoint> datapoints = getMetricStatisticsResult.getDatapoints();
                 for (Datapoint dp : datapoints) {
@@ -204,6 +214,9 @@ public class ScalerService {
     public List<Instance> reuse() {
         List<Instance> output = new ArrayList<>();
         for (Instance instance : getAllInstances()) {
+            if (isTerminated(instance) || isLoadBalancer(instance.getPublicIpAddress()))
+                continue;
+
             if (instance.getState().getName().equalsIgnoreCase("stopped") ||
                     instance.getState().getName().equalsIgnoreCase("stopping") ||
                     instance.getState().getName().equalsIgnoreCase("pending")) {
@@ -221,6 +234,14 @@ public class ScalerService {
             return false;
         }
         return html.contains("Page OK!");
+    }
+
+    private boolean isLoadBalancer(String ip) {
+        return LoadBalancer.ip.equalsIgnoreCase(ip);
+    }
+
+    private boolean isTerminated(Instance instance) {
+        return instance.getState().getName().equalsIgnoreCase("terminated");
     }
 
 

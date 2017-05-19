@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static pt.ulisboa.tecnico.meic.cnv.State.DEAD;
 
@@ -65,8 +66,16 @@ public class LoadBalancerThread extends Thread {
 
         LoadBalancerChoiceStrategy strategy = new LoadBalancerBestChoice(farm, metricCache, estimator, repositoryService);
         WebServerProxy node = strategy.chooseBestNode(request);
+        node.getActiveJobs().add(request);
 
         // TODO : Carefully think about the node that came, watch for state....
+        while (!ScalerService.getInstance().checkIfReady(node.getRemoteURL())) {
+            long l = ThreadLocalRandom.current().nextLong(1, 10);
+            try {
+                Thread.sleep(l * 1000);
+            } catch (InterruptedException ignored) {
+            }
+        }
 
         System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL() + " -> " + request);
         try {

@@ -19,7 +19,7 @@ public class WebServerProxy {
     private long lastTimeUsed;
     private List<Request> activeJobs;
     private State state = State.ALIVE;
-
+    private ServerState serverState = ServerState.READY;
     private Instance myInstance;
 
     public WebServerProxy(String remoteAddress, Instance instance) throws ArrayIndexOutOfBoundsException, NumberFormatException {
@@ -45,7 +45,8 @@ public class WebServerProxy {
         OutputStream os = null;
         try {
             lastTimeUsed = System.currentTimeMillis();
-            activeJobs.add(request);
+            if (!activeJobs.contains(request))
+                activeJobs.add(request);
 
             URL remoteResourse = new URL(getRemoteURL() + "/r.html?" +
                     t.getRequestURI().getQuery() + "&requestid=" + request.getId());
@@ -186,6 +187,15 @@ public class WebServerProxy {
 
     public void setMyInstance(Instance myInstance) {
         this.myInstance = myInstance;
+    }
+
+
+    public ServerState getServerState() {
+        return serverState;
+    }
+
+    public void setServerState(ServerState serverState) {
+        this.serverState = serverState;
     }
 
 }

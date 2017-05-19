@@ -9,8 +9,11 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -23,8 +26,10 @@ public class LoadBalancer {
     private static final int CACHE_THRESHOLD = 200;
     //Queue timer
     private static final Timer terminateInstances = new Timer();
+    //Load Balancer ip address
+    public static String ip = findMyIp();
     //List containing all available nodes
-    public static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
+    private static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
     private static int PORT = 8000;
     //We keep a cache metric to avoid contacting database all the time
     private static Map<Argument, Metric> metricCache = new Hashtable<>();
@@ -38,6 +43,11 @@ public class LoadBalancer {
                 .addOption("p", true, "Port to listen for remote requests")
                 .addOption("cli", false, "Display command line interface");
         CommandLine cmd = (new DefaultParser()).parse(options, args);
+
+        if (ip == null) {
+            System.err.println("Load Balancer should be able to know his ip address!");
+            System.exit(-1);
+        }
 
         try {
             String argPort = cmd.getOptionValue("p");
@@ -58,6 +68,7 @@ public class LoadBalancer {
         launchTimerTasks();
         server.createContext("/r.html", new MyHandler());
         System.out.println("Load balancer is running at *:" + PORT);
+
         if (!cmd.hasOption("cli")) {
             // we may want to consider instances that are already up, to add to the farm
             // this will eventually give us a bad load usage in first iterations,
@@ -65,8 +76,13 @@ public class LoadBalancer {
             Instance toAdd = null;
             List<Instance> previousInstances = ScalerService.getInstance().getAllInstances();
             for (Instance instance : previousInstances) {
+                // ignore the load balancer
+                if (instance.getState().getName().equalsIgnoreCase("terminated") || instance.getPublicIpAddress().equalsIgnoreCase(ip))
+                    continue;
+
                 String instanceState = instance.getState().getName();
-                if (instanceState.equalsIgnoreCase("running")) try {
+                if (instanceState.equalsIgnoreCase("running"))
+                    try {
                     if (toAdd == null ||
                             (ScalerService.getInstance().retrieveEC2Statistic(toAdd, "CPUUtilization", "Average") >
                                     (ScalerService.getInstance().retrieveEC2Statistic(instance, "CPUUtilization", "Average"))))
@@ -77,12 +93,15 @@ public class LoadBalancer {
 
             // our farm should always have a instance in the farm
             // if we have found a instance we can add it to the farm without needing to create a new one
-            if (toAdd != null)
-                farm.add(new WebServerProxy(toAdd.getPublicIpAddress(), toAdd));
-            else {
+            if (toAdd == null) {
                 List<Instance> newInstances = ScalerService.getInstance().createInstance(1, 1);
                 toAdd = newInstances.get(0);
-                farm.add(new WebServerProxy(toAdd.getPublicIpAddress(), toAdd));
+            }
+            farm.add(new WebServerProxy(toAdd.getPublicIpAddress() + ":" + "8080", toAdd));
+            try {
+                System.out.println(ScalerService.getInstance().retrieveEC2Statistic(toAdd, "CPUUtilization", "Average"));
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
@@ -99,6 +118,18 @@ public class LoadBalancer {
         if (cmd.hasOption("cli")) {
             (new CLI()).start();
         }
+    }
+
+    private static String findMyIp() {
+        String ip = null;
+        URL whatismyip = null;
+        try {
+            whatismyip = new URL("http://checkip.amazonaws.com");
+            BufferedReader in = new BufferedReader(new InputStreamReader(whatismyip.openStream()));
+            ip = in.readLine(); //you get the IP as a String
+        } catch (Exception e) {
+        }
+        return ip;
     }
 
     private static void launchTimerTasks() {

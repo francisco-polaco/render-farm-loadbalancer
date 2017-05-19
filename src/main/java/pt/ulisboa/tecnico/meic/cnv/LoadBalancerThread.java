@@ -18,17 +18,13 @@ public class LoadBalancerThread extends Thread {
             "test04.txt", "test05.txt", "test-texmap.txt", "wood.txt");
     private HttpExchange httpExchange;
     private List<WebServerProxy> farm;
-    private Map<Argument, Metric> metricCache;
     private Map<String, Estimator> estimators;
     private RepositoryService repositoryService;
 
-    LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Map<Argument, Metric> metricCache,
-                       Map<String, Estimator> estimators, RepositoryService repositoryServices) {
+    LoadBalancerThread(HttpExchange httpExchange, List<WebServerProxy> farm, Map<String, Estimator> estimators) {
         this.httpExchange = httpExchange;
         this.farm = farm;
-        this.metricCache = metricCache;
         this.estimators = estimators;
-        this.repositoryService = repositoryService;
     }
 
     private static Map<String, String> parseRequest(String query) {

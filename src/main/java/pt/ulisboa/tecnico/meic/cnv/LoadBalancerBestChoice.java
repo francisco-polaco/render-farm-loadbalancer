@@ -68,6 +68,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         // we should consider to launch another WebServerProxy if:
         // - no bestnode available since all instances are dead
 
+        boolean newWSP = false;
         List<Instance> reuse = ScalerService.getInstance().reuse();
         // between all my options we should consider that a pending machine is much more inexpensive than going from stopped or stopping state to running
         Instance toUse = null;
@@ -83,9 +84,15 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         } else {
             List<Instance> instances = ScalerService.getInstance().createInstance(1, 1);
             toUse = instances.get(0);
+            newWSP = true;
         }
 
         final WebServerProxy webServerProxy = new WebServerProxy(toUse.getPublicIpAddress() + ":" + "8000", toUse);
+
+        // TODO: BERNARDO
+        if (newWSP)
+            farm.add(webServerProxy);
+
         // is safe to assume that any of the instances that will from here will be payed for 1 hour
         // so we should only consider to terminate instances right before the 1 hour mark
         new Timer().schedule(new TimerTask() {

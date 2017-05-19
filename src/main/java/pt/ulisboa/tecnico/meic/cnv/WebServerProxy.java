@@ -84,6 +84,7 @@ public class WebServerProxy {
             state = State.ALIVE;
             long elapsedTime = System.currentTimeMillis() - startTime;
             BigInteger performed = new BigInteger(html.substring(html.indexOf("=")));
+            System.out.println("I performed : " + performed);
             try {
                 return new Load(elapsedTime, ScalerService.getInstance().retrieveEC2Statistic(myInstance, "CPUUtilization", "Average"), state, performed);
             } catch (Exception e) {
@@ -164,6 +165,7 @@ public class WebServerProxy {
         return address.equals(wsp.getAddress()) && port == wsp.getPort();
     }
 
+    // TODO: BERNARDO PARA USAR A INSTANCIA DE EC2
     public String getRemoteURL() {
         return "http://" + address + ":" + port;
     }

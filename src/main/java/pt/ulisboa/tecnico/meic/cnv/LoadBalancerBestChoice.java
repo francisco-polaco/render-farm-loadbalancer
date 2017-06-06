@@ -22,12 +22,14 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
     // You should remember that anything that comes from here the instance needs to be resolved, i.e. you need to check
     // if the WSP is ready to start processing the request
     @Override
-    public synchronized WebServerProxy chooseBestNode(final Request request) {
+    public synchronized WebServerProxy chooseBestNode(Request request) {
         // We should not give up on instances that are not alive!
         // We should not be greedy on choosing the instance, because we should not keep alot of instances up!
 
+        System.out.println(farm.size());
         Argument argument = request.getArgument();
         Metric metric = estimator.estimate(argument);
+        request.setMetric(metric);
 
         //In case we don't have a estimate nor an exact value
         if (metric == null) {
@@ -38,7 +40,6 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         WebServerProxy bestNode = null;
         double workLoad = 0d;
         double estimate;
-
         for (final WebServerProxy wsp : farm) {
             if (wsp.getServerState() == ServerState.TERMINATING)
                 continue;
@@ -56,12 +57,14 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             }
         }
 
+        if (workLoad == Double.MAX_VALUE) {
+            return bestNode;
+        }
+
         // if the work I am about to do surpasses the amount I can physically do
         // possible load to second that will be added to the current node
         // we multiply for 90% since, just because those thresholds were taken at 100% CPU
         double possibleLoad = (workLoad + metric.getRank()) / 60;
-        System.out.println(metric.getRank());
-        System.out.println(workLoad);
         System.out.println("possible load = " + possibleLoad);
         if (bestNode != null && possibleLoad >= (THRESHOLD) * 0.90)
             bestNode = null;
@@ -69,7 +72,7 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         return bestNode == null ? getInstance() : bestNode;
     }
 
-    private WebServerProxy getInstance() {
+    private synchronized WebServerProxy getInstance() {
         // we should consider to launch another WebServerProxy if:
         // - no bestnode available since all instances are dead
 
@@ -113,13 +116,21 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
             }
         }, 50 * 60 * 1000);
 
+        if (!farm.contains(webServerProxy)) {
+            webServerProxy.setServerState(ServerState.INITIALIZING);
+            farm.add(webServerProxy);
+        }
+
         return webServerProxy;
     }
 
     private double getEstimatedWorkLoad(WebServerProxy wsp, Load state) {
         double work = 0d;
-        for (Request req : wsp.getActiveJobs())
-            work += req.getRank();
+        for (Request req : wsp.getActiveJobs()) {
+            // we may have used LRU cause we couldn't estimate, in that case we don't count it as an active job
+            if (req.getMetric() != null)
+                work += req.getRank();
+        }
 
         // Calculating something on a CPU that is already in a bottleneck becomes expensive
         work = work * (1 + (state.getCpuUsage() / 100));
@@ -131,12 +142,14 @@ public class LoadBalancerBestChoice implements LoadBalancerChoiceStrategy {
         // its also true that more "instructions" were executed
         // we agreed on that trade-off when we grabbed only the most important metrics - precision/performance
 
+        // this may happen when a LRU was used, or no jobs active, or a sudden error
+        if (work - state.getPerformed().doubleValue() < 0) {
+            return Double.MAX_VALUE;
+        }
+
+
         return work - state.getPerformed().doubleValue();
     }
 
-
-    // TODO: better queries on dynamodb
-    // TODO: metrics downsize
-    // TODO: Politicas para dar downsize à farm
 
 }

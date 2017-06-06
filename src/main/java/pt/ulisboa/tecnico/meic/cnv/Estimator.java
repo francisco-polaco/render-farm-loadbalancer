@@ -27,15 +27,15 @@ public class Estimator {
         else {
             // something similar should have an equal model
             for (Argument arg : metricCache.keySet()) {
-                if (arg.getModel().equals(argument.getModel()) && isSimilar(argument, arg))
+                if (arg.getModel().equals(argument.getModel()) && isSimilar(argument, arg)) {
                     return metricCache.get(arg);
+                }
             }
 
             // have a probability of using LRU, to add randomness
             if (new Random().nextFloat() <= (1 - PROBABILITY_LRU)) {
                 // cache can't suffice - try using dynamodb
-                if (candidate == null)
-                    candidate = chooseBestCandidate(argument, repositoryService.getMetricsEstimator(argument));
+                candidate = chooseBestCandidate(argument, repositoryService.getMetricsEstimator(argument));
             }
         }
 
@@ -57,7 +57,7 @@ public class Estimator {
 
     // a closer interval is a better estimate
     private long isBetter(Argument request, Argument candidate) {
-        return Math.abs(request.getWindowColumns() - candidate.getWindowColumns()) + Math.abs(request.getWindowRows() + candidate.getWindowRows());
+        return Math.abs(request.getWindowColumns() - candidate.getWindowColumns()) + Math.abs(request.getWindowRows() - candidate.getWindowRows());
     }
 
 

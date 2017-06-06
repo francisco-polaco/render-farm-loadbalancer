@@ -31,13 +31,13 @@ public class LoadBalancer {
     public static ConcurrentLinkedQueue<Packet> failedRequests = new ConcurrentLinkedQueue<Packet>();
     //Load Balancer ip address
     public static String ip = findMyIp();
+    //We keep a cache metric to avoid contacting database all the time
+    public static Map<Argument, Metric> metricCache = new Hashtable<>();
+    //Amazon DynamoDB repository
+    public static RepositoryService repositoryService = new RepositoryService();
     //List containing all available nodes
     private static List<WebServerProxy> farm = new CopyOnWriteArrayList<>();
     private static int PORT = 8000;
-    //We keep a cache metric to avoid contacting database all the time
-    private static Map<Argument, Metric> metricCache = new Hashtable<>();
-    //Amazon DynamoDB repository
-    private static RepositoryService repositoryService = new RepositoryService();
     //One estimator for each model
     private static Estimator estimator = new Estimator(metricCache, repositoryService);
 
@@ -70,7 +70,7 @@ public class LoadBalancer {
 
         launchTimerTasks();
         server.createContext("/r.html", new MyHandler());
-        System.out.println("Load balancer is running at *:" + PORT);
+        System.out.println("Load balancer is running at " + ip + ":" + PORT);
 
         if (!cmd.hasOption("cli")) {
             // we may want to consider instances that are already up, to add to the farm
@@ -80,7 +80,7 @@ public class LoadBalancer {
             List<Instance> previousInstances = ScalerService.getInstance().getAllInstances();
             for (Instance instance : previousInstances) {
                 // ignore the load balancer
-                if (instance.getState().getName().equalsIgnoreCase("terminated") || instance.getPublicIpAddress().equalsIgnoreCase(ip))
+                if (instance == null || instance.getState().getName().equalsIgnoreCase("terminated") || instance.getPublicIpAddress().equalsIgnoreCase(ip))
                     continue;
 
                 String instanceState = instance.getState().getName();
@@ -148,7 +148,6 @@ public class LoadBalancer {
     private static class MyHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
-            System.out.println("Received request: " + t.getRequestURI().getQuery());
             (new LoadBalancerThread(t, farm, estimator)).start();
         }
     }

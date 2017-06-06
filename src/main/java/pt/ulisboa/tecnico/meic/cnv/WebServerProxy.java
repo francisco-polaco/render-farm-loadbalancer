@@ -69,7 +69,9 @@ public class WebServerProxy {
             IOUtils.copy(is, os);
             is.close();
             os.close();
+            System.out.println(activeJobs.size());
             activeJobs.remove(request);
+            System.out.println(activeJobs.size());
         } catch (IOException e) {
             activeJobs.remove(request);
             if (is != null) is.close();
@@ -91,8 +93,8 @@ public class WebServerProxy {
             System.out.println(address + ":" + port + " is OK!");
             state = State.ALIVE;
             long elapsedTime = System.currentTimeMillis() - startTime;
-            BigInteger performed = new BigInteger(html.substring(html.indexOf("=")));
-            System.out.println("I performed : " + performed);
+            String aux = html.substring(html.indexOf("=") + 1);
+            BigInteger performed = new BigInteger(aux.substring(0, aux.indexOf("\n")));
             try {
                 return new Load(elapsedTime, ScalerService.getInstance().retrieveEC2Statistic(myInstance, "CPUUtilization", "Average"), state, performed);
             } catch (Exception e) {

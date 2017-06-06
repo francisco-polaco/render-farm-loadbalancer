@@ -73,6 +73,12 @@ public class RepositoryService {
         ScanResult scanResult = repository.scan(scanRequest);
 
         List<Map<String, AttributeValue>> queryResult = scanResult.getItems();
+
+
+        return extractMetric(queryResult);
+    }
+
+    private Map<Argument, Metric> extractMetric(List<Map<String, AttributeValue>> queryResult) {
         HashMap<Argument, Metric> output = new HashMap<>();
         for (Map<String, AttributeValue> element : queryResult) {
             output.put(new Argument(element.get("model").toString(),
@@ -88,6 +94,27 @@ public class RepositoryService {
                             Long.valueOf(element.get("not_taken").getS())));
         }
         return output;
+    }
+
+    public Metric getCachedMetric(String url) {
+        HashMap<String, Condition> scanFilter = new HashMap<>();
+
+        Condition condition = new Condition()
+                .withComparisonOperator(ComparisonOperator.EQ.toString())
+                .withAttributeValueList(new AttributeValue().withS(url));
+
+        scanFilter.put("id", condition);
+
+        ScanRequest scanRequest = new ScanRequest(TABLE_NAME).withScanFilter(scanFilter);
+        ScanResult scanResult = repository.scan(scanRequest);
+
+        List<Map<String, AttributeValue>> queryResult = scanResult.getItems();
+
+        Map<Argument, Metric> argumentMetricMap = extractMetric(queryResult);
+        for (Argument argument : argumentMetricMap.keySet()) {
+            return argumentMetricMap.get(argument);
+        }
+        return null;
     }
 
 

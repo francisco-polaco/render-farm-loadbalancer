@@ -44,6 +44,7 @@ public class LoadBalancerThread extends Thread {
         Request request = null;
         try {
             request = new Request(parseRequest(httpExchange.getRequestURI().getQuery()));
+            System.out.println("[Received] " + request.getId() + " URL: " + httpExchange.getRequestURI().getQuery());
         } catch (RuntimeException e) {
             System.out.println("Received invalid request, ignoring");
             String response = "Invalid image parameters";
@@ -63,11 +64,6 @@ public class LoadBalancerThread extends Thread {
         node.getActiveJobs().add(request);
 
 
-        if (!farm.contains(node)) {
-            node.setServerState(ServerState.INITIALIZING);
-            farm.add(node);
-        }
-
         // Carefully think about the node that came, watch for the state....
         long milis = System.currentTimeMillis();
         while (!ScalerService.getInstance().checkIfReady(node.getRemoteURL())) {
@@ -78,7 +74,7 @@ public class LoadBalancerThread extends Thread {
             } catch (InterruptedException ignored) {
             }
             // if in 2 minutes the node doesn't come up just shift to another one
-            if (System.currentTimeMillis() - milis == 120000) {
+            if (System.currentTimeMillis() - milis >= 120000) {
                 LoadBalancer.failedRequests.add(new Packet(httpExchange, request));
                 farm.remove(node);
                 break;
@@ -88,11 +84,12 @@ public class LoadBalancerThread extends Thread {
         // even if the node is ready to serve, initializing nodes need to be set to ready
         node.setServerState(ServerState.READY);
 
-        System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL() + " -> " + request);
+        System.out.println("[Received] " + request.getId() + " sent to " + node.getRemoteURL());
         try {
             node.dispatch(httpExchange, request);
-            System.out.println("[Completed] " + httpExchange.getRequestURI().getQuery() + " finished in " +
+            System.out.println("[Completed] " + request.getId() + " finished in " +
                     (System.currentTimeMillis() - request.getTimestamp()) + " ms");
+            LoadBalancer.metricCache.put(request.getArgument(), LoadBalancer.repositoryService.getCachedMetric(httpExchange.getRequestURI().getQuery()));
         } catch (IOException e) {
             System.out.println("[Aborted] " + request.getId() + " aborted due to " + e.getClass().getSimpleName());
             if (node.isAvailable().getState() == DEAD) {
